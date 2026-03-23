@@ -9,6 +9,8 @@ std = ["alloc", "libc"]
 alloc = []
 
 [dependencies]
+crc32fast = "1"
+xxhash-rust = { version = "0.8", features = ["xxh3"] }
 
 [target.'cfg(unix)'.dependencies]
 libc = { version = "0.2", optional = true }
