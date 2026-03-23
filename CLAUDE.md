@@ -62,7 +62,7 @@ If a test fails, fix it before moving on. If a clippy warning appears, resolve i
 
 ### 8. Produce a completion report when all items pass
 
-When all checklist items are done and all checks pass, produce a completion report following the format in the master project prompt's Instance Rules section. Include:
+When all checklist items are done and all checks pass, produce a completion report and **write it to `./completion-reports/<task-number>-<task-slug>.md`** (e.g., `./completion-reports/22-core-types.md`). Create the directory if it does not exist. The report should include:
 - Status (COMPLETE / PARTIAL / BLOCKED)
 - Done criterion assessment with evidence
 - Deliverables list
