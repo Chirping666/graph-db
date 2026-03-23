@@ -29,6 +29,10 @@ pub mod schema;
 pub mod constraint;
 pub mod inference;
 pub mod error;
+pub mod hal;
+
+#[cfg(feature = "std")]
+pub mod hal_std;
 
 // Re-export primary types for convenience.
 pub use types::{
@@ -44,6 +48,11 @@ pub use inference::{
     MaterializedMapping, ProvenanceRecord,
 };
 pub use error::{Error, InferenceError, NotFoundError, SchemaError, StorageError, TransactionError};
+pub use hal::{ReadAt, StorageBackend, StorageErrorKind, StorageErrorType, WriteAt};
+// Note: hal::Sync is NOT re-exported at the crate root to avoid shadowing
+// core::marker::Sync. Access it as graph_db::hal::Sync.
+// Note: hal::StorageError (trait) is NOT re-exported here to avoid collision
+// with error::StorageError (struct). Access it as graph_db::hal::StorageError.
 
 #[cfg(test)]
 mod compile_tests {
@@ -57,4 +66,31 @@ mod compile_tests {
     fn _assert_graph_view(_: &dyn GraphView) {}
     fn _assert_type_registry_view(_: &dyn TypeRegistryView) {}
     fn _assert_property_key_registry_view(_: &dyn PropertyKeyRegistryView) {}
+
+    // HAL: StorageBackend is object-safe
+    fn _assert_storage_backend_object_safe<E: hal::StorageError>(
+        _: &dyn hal::StorageBackend<Error = E>,
+    ) {
+    }
+
+    // FileBackend satisfies StorageBackend
+    #[cfg(feature = "std")]
+    fn _assert_file_backend_is_storage_backend() {
+        fn _check<T: hal::StorageBackend>() {}
+        _check::<hal_std::FileBackend>();
+    }
+
+    // FileBackend satisfies OpenableBackend
+    #[cfg(feature = "std")]
+    fn _assert_file_backend_is_openable() {
+        fn _check<T: hal::OpenableBackend>() {}
+        _check::<hal_std::FileBackend>();
+    }
+
+    // FileBackend satisfies LockableBackend
+    #[cfg(feature = "std")]
+    fn _assert_file_backend_is_lockable() {
+        fn _check<T: hal::LockableBackend>() {}
+        _check::<hal_std::FileBackend>();
+    }
 }
