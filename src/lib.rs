@@ -37,6 +37,9 @@ pub mod hal_std;
 #[cfg(feature = "std")]
 pub mod storage;
 
+#[cfg(feature = "std")]
+pub mod db;
+
 // Re-export primary types for convenience.
 pub use types::{
     Edge, EdgeId, Node, NodeId, PropertyDeclaration, PropertyKeyId, PropertyMap, TypeDefinition,
