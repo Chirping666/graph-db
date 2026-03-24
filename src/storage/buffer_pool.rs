@@ -255,6 +255,11 @@ impl BufferPool {
         Ok(())
     }
 
+    /// Looks up a page in the page table, returning the frame index if cached.
+    pub fn page_table_get(&self, page_id: PageId) -> Option<&usize> {
+        self.page_table.get(&page_id.0)
+    }
+
     /// Flushes all dirty frames to the backend.
     ///
     /// # Errors
