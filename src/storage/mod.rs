@@ -196,6 +196,39 @@ impl<B: StorageBackend> StorageEngine<B> {
             .search(root, key, &mut self.buffer_pool, &mut self.backend)
     }
 
+    /// Performs a range scan on a B-tree, collecting all key-value pairs
+    /// in the range `[start_key, end_key)`.
+    ///
+    /// If `end_key` is `None`, scans to the end of the tree.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error on I/O failure or checksum mismatch.
+    #[allow(clippy::type_complexity)]
+    pub fn range_scan(
+        &mut self,
+        root: PageId,
+        start_key: &[u8],
+        end_key: Option<&[u8]>,
+    ) -> Result<Vec<(Vec<u8>, Vec<u8>)>, StorageError> {
+        let config = self.btree.config.clone();
+        let mut cursor = btree::cursor::BTreeCursor::new(
+            root,
+            start_key,
+            end_key,
+            &mut self.buffer_pool,
+            &mut self.backend,
+            &config,
+        )?;
+        let mut results = Vec::new();
+        while let Some(entry) =
+            cursor.next(&mut self.buffer_pool, &mut self.backend, &config)?
+        {
+            results.push(entry);
+        }
+        Ok(results)
+    }
+
     /// Inserts a key-value pair into a B-tree identified by its root page.
     ///
     /// Returns the new root page ID and sets of freed/allocated pages.

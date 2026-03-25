@@ -14,6 +14,7 @@
 pub mod builders;
 pub mod config;
 pub mod database;
+pub mod graph_reader;
 pub mod graph_view;
 pub mod read_txn;
 pub mod schema_cache;
@@ -22,3 +23,7 @@ pub mod write_txn;
 
 pub use builders::{EdgeBuilder, NodeBuilder, TypeDefinitionBuilder};
 pub use config::{DatabaseConfig, StorageMode};
+pub use database::{Database, MissingExtensions};
+pub use graph_reader::GraphReader;
+pub use read_txn::ReadTransaction;
+pub use write_txn::WriteTransaction;
