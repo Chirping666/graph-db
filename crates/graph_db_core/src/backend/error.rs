@@ -15,7 +15,7 @@ use core::fmt;
 /// # Examples
 ///
 /// ```
-/// use graph_db::StorageErrorKind;
+/// use graph_db_core::StorageErrorKind;
 ///
 /// let kind = StorageErrorKind::OutOfBounds;
 /// assert_eq!(format!("{kind}"), "out of bounds");

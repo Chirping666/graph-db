@@ -24,8 +24,8 @@ use crate::types::{PropertyKeyId, TypeId, TypeKind};
 /// # Examples
 ///
 /// ```
-/// use graph_db::error::SchemaError;
-/// use graph_db::TypeKind;
+/// use graph_db_core::error::SchemaError;
+/// use graph_db_core::TypeKind;
 ///
 /// let err = SchemaError::DuplicateTypeName {
 ///     name: "Person".into(),
@@ -113,8 +113,8 @@ impl fmt::Display for SchemaError {
 /// # Examples
 ///
 /// ```
-/// use graph_db::error::NotFoundError;
-/// use graph_db::NodeId;
+/// use graph_db_core::error::NotFoundError;
+/// use graph_db_core::NodeId;
 ///
 /// let err = NotFoundError::Node(NodeId(42));
 /// assert!(format!("{err}").contains("42"));
@@ -153,7 +153,7 @@ impl fmt::Display for NotFoundError {
 /// # Examples
 ///
 /// ```
-/// use graph_db::StorageError;
+/// use graph_db_core::StorageError;
 ///
 /// let err = StorageError {
 ///     message: "disk full".into(),
@@ -190,7 +190,7 @@ impl fmt::Display for StorageError {
 /// # Examples
 ///
 /// ```
-/// use graph_db::TransactionError;
+/// use graph_db_core::TransactionError;
 ///
 /// let err = TransactionError::ReadOnly;
 /// assert!(format!("{err}").contains("read-only"));
@@ -230,7 +230,7 @@ impl fmt::Display for TransactionError {
 /// # Examples
 ///
 /// ```
-/// use graph_db::InferenceError;
+/// use graph_db_core::InferenceError;
 ///
 /// let err = InferenceError::RuleNotFound("my_rule".into());
 /// assert!(format!("{err}").contains("my_rule"));
@@ -273,8 +273,8 @@ impl fmt::Display for InferenceError {
 /// # Examples
 ///
 /// ```
-/// use graph_db::error::{Error, SchemaError};
-/// use graph_db::TypeKind;
+/// use graph_db_core::error::{Error, SchemaError};
+/// use graph_db_core::TypeKind;
 ///
 /// let err: Error = SchemaError::DuplicateTypeName {
 ///     name: "X".into(),

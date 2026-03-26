@@ -58,6 +58,7 @@ name = "graph_db"
 version = "0.1.0"
 dependencies = [
  "crc32fast",
+ "graph_db_core",
  "libc",
  "xxhash-rust",
 ]
@@ -69,6 +70,10 @@ dependencies = [
  "graph_db",
  "libfuzzer-sys",
 ]
+
+[[package]]
+name = "graph_db_core"
+version = "0.1.0"
 
 [[package]]
 name = "jobserver"

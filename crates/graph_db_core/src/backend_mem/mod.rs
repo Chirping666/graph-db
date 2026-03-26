@@ -7,7 +7,7 @@
 //! `MemoryBackend` implements the same backend traits ([`ReadAt`](crate::backend::ReadAt),
 //! [`WriteAt`](crate::backend::WriteAt), [`Durability`](crate::backend::Durability),
 //! [`StorageBackend`](crate::backend::StorageBackend)) as
-//! [`FileBackend`](crate::backend_std::FileBackend), so the entire storage engine
+//! `FileBackend` (from `graph_db`), so the entire storage engine
 //! operates identically regardless of which backend is in use.
 //!
 //! # Optional snapshot support

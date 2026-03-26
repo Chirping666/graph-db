@@ -1,3 +1,6 @@
+[workspace]
+members = [".", "crates/graph_db_core"]
+
 [package]
 name = "graph_db"
 version = "0.1.0"
@@ -19,17 +22,13 @@ exclude = [
     "CLAUDE.md",
 ]
 
-[features]
-default = ["std"]
-std = ["alloc", "libc"]
-alloc = []
-
 [dependencies]
+graph_db_core = { path = "crates/graph_db_core" }
 crc32fast = "1"
 xxhash-rust = { version = "0.8", features = ["xxh3"] }
 
 [target.'cfg(unix)'.dependencies]
-libc = { version = "0.2", optional = true }
+libc = "0.2"
 
 [dev-dependencies]
 tempfile = "3"

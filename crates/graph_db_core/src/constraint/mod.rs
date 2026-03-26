@@ -19,8 +19,8 @@ use crate::types::{Edge, EdgeId, Node, NodeId, TypeId};
 /// # Examples
 ///
 /// ```
-/// use graph_db::constraint::NodeChange;
-/// use graph_db::types::{Node, NodeId};
+/// use graph_db_core::constraint::NodeChange;
+/// use graph_db_core::types::{Node, NodeId};
 /// use std::collections::BTreeMap;
 ///
 /// let node = Node {
@@ -52,8 +52,8 @@ pub enum NodeChange {
 /// # Examples
 ///
 /// ```
-/// use graph_db::constraint::EdgeChange;
-/// use graph_db::types::{Edge, EdgeId, NodeId};
+/// use graph_db_core::constraint::EdgeChange;
+/// use graph_db_core::types::{Edge, EdgeId, NodeId};
 /// use std::collections::BTreeMap;
 ///
 /// let edge = Edge {
@@ -197,8 +197,8 @@ impl<'a> ChangeSet<'a> {
 /// # Examples
 ///
 /// ```
-/// use graph_db::constraint::{ConstraintViolation, ViolationSubject};
-/// use graph_db::NodeId;
+/// use graph_db_core::constraint::{ConstraintViolation, ViolationSubject};
+/// use graph_db_core::NodeId;
 ///
 /// let v = ConstraintViolation {
 ///     violation_kind: "missing_name".into(),
@@ -222,8 +222,8 @@ pub struct ConstraintViolation {
 /// # Examples
 ///
 /// ```
-/// use graph_db::constraint::ViolationSubject;
-/// use graph_db::NodeId;
+/// use graph_db_core::constraint::ViolationSubject;
+/// use graph_db_core::NodeId;
 ///
 /// let subject = ViolationSubject::Node(NodeId(5));
 /// assert!(matches!(subject, ViolationSubject::Node(_)));

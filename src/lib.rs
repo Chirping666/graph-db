@@ -9,6 +9,17 @@
 //! constraints, and inference rules for your domain. No ontology vocabulary
 //! (OWL, RDF, SKOS, etc.) is built in.
 //!
+//! # Workspace Structure
+//!
+//! This crate is part of a Cargo workspace:
+//!
+//! - **`graph_db_core`** — `no_std + alloc` foundation: core types, traits,
+//!   error hierarchy, backend trait definitions, and in-memory backend. Use this
+//!   crate directly if you need `no_std` compatibility.
+//! - **`graph_db`** (this crate) — full database engine. Re-exports everything
+//!   from `graph_db_core` and adds file-backed storage, B+ tree storage engine,
+//!   buffer pool, transactions, and the `Database` facade.
+//!
 //! # Quick Start
 //!
 //! ```rust
@@ -54,30 +65,18 @@
 //! ┌─────────────────────────────────────┐
 //! │  Application / Downstream Crate     │
 //! ├─────────────────────────────────────┤
-//! │  Public API (Database, Transactions)│
+//! │  Public API (Database, Transactions)│  ← graph_db
 //! ├─────────────────────────────────────┤
-//! │  Query & Traversal Engine           │
+//! │  Storage Engine (B+ trees, pages)   │  ← graph_db
 //! ├─────────────────────────────────────┤
-//! │  Storage Engine (B+ trees, pages)   │
+//! │  Core Types, Traits, Errors         │  ← graph_db_core
 //! ├─────────────────────────────────────┤
-//! │  Storage Backend Traits             │
+//! │  Storage Backend Traits             │  ← graph_db_core
 //! ├──────────────┬──────────────────────┤
 //! │  File backend │  In-memory backend  │
+//! │  (graph_db)   │  (graph_db_core)    │
 //! └──────────────┴──────────────────────┘
 //! ```
-//!
-//! The core types (`types`, `schema`, `constraint`, `inference`, `error`)
-//! form the `no_std + alloc` foundation. The storage engine, buffer pool,
-//! and database facade require `std`.
-//!
-//! # Feature Flags
-//!
-//! - **`std`** (default) — enables the full database engine, file-backed
-//!   storage, and `std::error::Error` implementations. Implies `alloc`.
-//! - **`alloc`** — enables core types that require heap allocation
-//!   (`String`, `Vec`, `BTreeMap`). This is the minimum feature set for
-//!   using the type system, schema traits, and error types in a `no_std`
-//!   environment.
 //!
 //! # Thread Safety
 //!
@@ -87,63 +86,41 @@
 //! buffer-pool references and must be used on the thread that created them.
 //! Extract owned data (nodes, edges, IDs) to share results across threads.
 
-#![cfg_attr(not(feature = "std"), no_std)]
+// Re-export the core crate's modules.
+pub use graph_db_core::backend;
+pub use graph_db_core::backend_mem;
+pub use graph_db_core::constraint;
+pub use graph_db_core::error;
+pub use graph_db_core::inference;
+pub use graph_db_core::schema;
+pub use graph_db_core::types;
 
-#[cfg(feature = "alloc")]
-extern crate alloc;
-
-#[cfg(feature = "alloc")]
-pub mod types;
-#[cfg(feature = "alloc")]
-pub mod schema;
-#[cfg(feature = "alloc")]
-pub mod constraint;
-#[cfg(feature = "alloc")]
-pub mod inference;
-#[cfg(feature = "alloc")]
-pub mod error;
-pub mod backend;
-
-#[cfg(feature = "alloc")]
-pub mod backend_mem;
-
-#[cfg(feature = "std")]
+// Std-only modules defined in this crate.
 pub mod backend_std;
-
-#[cfg(feature = "std")]
 pub mod storage;
-
-#[cfg(feature = "std")]
 pub mod db;
 
 // Re-export database facade types for convenience.
-#[cfg(feature = "std")]
 pub use db::{
     Database, DatabaseConfig, EdgeBuilder, MissingExtensions, NodeBuilder, ReadTransaction,
     StorageMode, TypeDefinitionBuilder, WriteTransaction,
 };
 
 // Re-export primary types for convenience.
-#[cfg(feature = "alloc")]
 pub use types::{
     Edge, EdgeId, Node, NodeId, PropertyDeclaration, PropertyKeyId, PropertyMap, TypeDefinition,
     TypeId, TypeKind, Value, ValueTypeDescriptor,
 };
-#[cfg(feature = "alloc")]
 pub use schema::{GraphView, PropertyKeyRegistryView, TypeRegistryView};
-#[cfg(feature = "alloc")]
 pub use constraint::{
     ChangeSet, ConstraintValidator, ConstraintViolation, EdgeChange, NodeChange, ViolationSubject,
 };
-#[cfg(feature = "alloc")]
 pub use inference::{
     InferenceMode, InferenceResult, InferenceRule, InferredEntity, InferredFact,
     MaterializedMapping, ProvenanceRecord,
 };
-#[cfg(feature = "alloc")]
 pub use error::{Error, InferenceError, NotFoundError, SchemaError, StorageError, TransactionError};
 pub use backend::{Durability, ReadAt, StorageBackend, StorageErrorKind, StorageErrorType, WriteAt};
-#[cfg(feature = "alloc")]
 pub use backend_mem::{MemoryBackend, MemoryError};
 // Note: backend::StorageError (trait) is NOT re-exported here to avoid collision
 // with error::StorageError (struct). Access it as graph_db::backend::StorageError.
@@ -153,17 +130,12 @@ mod compile_tests {
     use super::*;
 
     // Verify Send + Sync on Box<dyn ConstraintValidator>
-    #[cfg(feature = "alloc")]
     fn _assert_validator_send_sync(_: Box<dyn ConstraintValidator>) {}
     // Verify Send + Sync on Box<dyn InferenceRule>
-    #[cfg(feature = "alloc")]
     fn _assert_rule_send_sync(_: Box<dyn InferenceRule>) {}
     // Verify all trait objects are object-safe
-    #[cfg(feature = "alloc")]
     fn _assert_graph_view(_: &dyn GraphView) {}
-    #[cfg(feature = "alloc")]
     fn _assert_type_registry_view(_: &dyn TypeRegistryView) {}
-    #[cfg(feature = "alloc")]
     fn _assert_property_key_registry_view(_: &dyn PropertyKeyRegistryView) {}
 
     // StorageBackend is object-safe
@@ -173,21 +145,18 @@ mod compile_tests {
     }
 
     // FileBackend satisfies StorageBackend
-    #[cfg(feature = "std")]
     fn _assert_file_backend_is_storage_backend() {
         fn _check<T: backend::StorageBackend>() {}
         _check::<backend_std::FileBackend>();
     }
 
     // FileBackend satisfies OpenableBackend
-    #[cfg(feature = "std")]
     fn _assert_file_backend_is_openable() {
         fn _check<T: backend::OpenableBackend>() {}
         _check::<backend_std::FileBackend>();
     }
 
     // FileBackend satisfies LockableBackend
-    #[cfg(feature = "std")]
     fn _assert_file_backend_is_lockable() {
         fn _check<T: backend::LockableBackend>() {}
         _check::<backend_std::FileBackend>();

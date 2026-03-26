@@ -18,7 +18,7 @@ use crate::backend::{self, StorageErrorKind, StorageErrorType};
 /// # Examples
 ///
 /// ```
-/// use graph_db::MemoryError;
+/// use graph_db_core::MemoryError;
 ///
 /// let err = MemoryError::OutOfBounds {
 ///     offset: 100,
@@ -84,7 +84,7 @@ impl std::error::Error for MemoryError {}
 /// ([`save_to_file`](Self::save_to_file)) and loading from one
 /// ([`load_from_file`](Self::load_from_file)). The resulting file is a valid
 /// database file and can be opened with
-/// [`FileBackend`](crate::backend_std::FileBackend).
+/// `FileBackend` (from `graph_db`).
 ///
 /// # Thread safety
 ///
@@ -96,7 +96,7 @@ impl std::error::Error for MemoryError {}
 /// # Examples
 ///
 /// ```
-/// use graph_db::MemoryBackend;
+/// use graph_db_core::MemoryBackend;
 ///
 /// let backend = MemoryBackend::new();
 /// assert!(backend.as_bytes().is_empty());
@@ -216,7 +216,7 @@ impl backend::ReadAt for MemoryBackend {
 impl backend::WriteAt for MemoryBackend {
     /// Writes exactly `buf.len()` bytes at `offset`.
     ///
-    /// Unlike [`FileBackend`](crate::backend_std::FileBackend), this
+    /// Unlike `FileBackend` (from `graph_db`), this
     /// implementation **auto-extends** the backing storage if the write
     /// extends beyond the current length. Bytes between the old end and
     /// `offset` are zero-filled.
@@ -282,7 +282,7 @@ impl MemoryBackend {
     ///
     /// Writes the raw byte contents of the in-memory storage to the
     /// specified path. The resulting file is a valid database file and can
-    /// be opened with [`FileBackend`](crate::backend_std::FileBackend).
+    /// be opened with `FileBackend` (from `graph_db`).
     ///
     /// # Errors
     ///
@@ -301,7 +301,7 @@ impl MemoryBackend {
     /// Reads the entire file into memory. The file should be a valid
     /// database file (e.g., one previously saved with
     /// [`save_to_file`](Self::save_to_file) or created by
-    /// [`FileBackend`](crate::backend_std::FileBackend)).
+    /// `FileBackend` (from `graph_db`)).
     ///
     /// # Errors
     ///
