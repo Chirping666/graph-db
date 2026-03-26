@@ -16,9 +16,6 @@ pub enum StorageMode {
         path: PathBuf,
     },
     /// In-memory storage. Data is lost when the database is dropped.
-    ///
-    /// **Note:** In-memory mode is not yet implemented (Task 27). Attempting
-    /// to open a database in this mode will return an error.
     InMemory,
 }
 
@@ -74,13 +71,15 @@ impl DatabaseConfig {
 
     /// Creates a configuration for in-memory storage with sensible defaults.
     ///
-    /// **Note:** In-memory mode is not yet implemented (Task 27).
+    /// The `extension_startup_check` defaults to `false` because a fresh
+    /// in-memory database has no previously persisted extension list to
+    /// check against.
     pub fn in_memory() -> Self {
         Self {
             mode: StorageMode::InMemory,
             buffer_pool_frames: 1024,
             page_size: 4096,
-            extension_startup_check: true,
+            extension_startup_check: false,
             inference_cache_size: 64,
         }
     }

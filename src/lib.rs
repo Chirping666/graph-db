@@ -31,6 +31,9 @@ pub mod inference;
 pub mod error;
 pub mod hal;
 
+#[cfg(feature = "alloc")]
+pub mod hal_mem;
+
 #[cfg(feature = "std")]
 pub mod hal_std;
 
@@ -55,6 +58,8 @@ pub use inference::{
 };
 pub use error::{Error, InferenceError, NotFoundError, SchemaError, StorageError, TransactionError};
 pub use hal::{ReadAt, StorageBackend, StorageErrorKind, StorageErrorType, WriteAt};
+#[cfg(feature = "alloc")]
+pub use hal_mem::{MemoryBackend, MemoryError};
 // Note: hal::Sync is NOT re-exported at the crate root to avoid shadowing
 // core::marker::Sync. Access it as graph_db::hal::Sync.
 // Note: hal::StorageError (trait) is NOT re-exported here to avoid collision

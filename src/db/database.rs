@@ -9,8 +9,9 @@ use std::sync::{Arc, Mutex, RwLock};
 
 use crate::constraint::ConstraintValidator;
 use crate::error::{Error, StorageError};
-use crate::hal::{OpenableBackend, ReadAt};
-use crate::hal_std::file_backend::{FileBackend, FileBackendConfig};
+use crate::hal::{self, OpenableBackend, ReadAt, StorageErrorKind, StorageErrorType, WriteAt};
+use crate::hal_mem::{MemoryBackend, MemoryError};
+use crate::hal_std::file_backend::{FileBackend, FileBackendConfig, FileError};
 use crate::inference::InferenceRule;
 use crate::storage::page::PageId;
 use crate::storage::serialization;
@@ -23,6 +24,110 @@ use super::inference_engine::InferenceEngine;
 use super::read_txn::ReadTransaction;
 use super::schema_cache::SchemaCache;
 use super::write_txn::WriteTransaction;
+
+// ---------------------------------------------------------------------------
+// AnyBackend — internal enum dispatch for multiple storage backends
+// ---------------------------------------------------------------------------
+
+/// Unified error type for [`AnyBackend`].
+#[derive(Debug)]
+pub(crate) enum AnyBackendError {
+    /// Error from the file-backed storage backend.
+    File(FileError),
+    /// Error from the in-memory storage backend.
+    Memory(MemoryError),
+}
+
+impl core::fmt::Display for AnyBackendError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            AnyBackendError::File(e) => e.fmt(f),
+            AnyBackendError::Memory(e) => e.fmt(f),
+        }
+    }
+}
+
+impl std::error::Error for AnyBackendError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            AnyBackendError::File(e) => e.source(),
+            AnyBackendError::Memory(_) => None,
+        }
+    }
+}
+
+impl hal::StorageError for AnyBackendError {
+    fn kind(&self) -> StorageErrorKind {
+        match self {
+            AnyBackendError::File(e) => e.kind(),
+            AnyBackendError::Memory(e) => e.kind(),
+        }
+    }
+}
+
+/// Internal backend enum supporting both file and in-memory storage.
+///
+/// Not exposed in the public API. Implements all HAL traits via
+/// match-and-delegate so that `StorageEngine<AnyBackend>` works
+/// identically regardless of the underlying backend.
+pub(crate) enum AnyBackend {
+    /// File-backed persistent storage.
+    File(FileBackend),
+    /// In-memory storage backed by `Vec<u8>`.
+    Memory(MemoryBackend),
+}
+
+impl StorageErrorType for AnyBackend {
+    type Error = AnyBackendError;
+}
+
+impl ReadAt for AnyBackend {
+    fn read_at(&self, offset: u64, buf: &mut [u8]) -> Result<(), AnyBackendError> {
+        match self {
+            AnyBackend::File(f) => f.read_at(offset, buf).map_err(AnyBackendError::File),
+            AnyBackend::Memory(m) => m.read_at(offset, buf).map_err(AnyBackendError::Memory),
+        }
+    }
+
+    fn len(&self) -> Result<u64, AnyBackendError> {
+        match self {
+            AnyBackend::File(f) => f.len().map_err(AnyBackendError::File),
+            AnyBackend::Memory(m) => m.len().map_err(AnyBackendError::Memory),
+        }
+    }
+}
+
+impl WriteAt for AnyBackend {
+    fn write_at(&mut self, offset: u64, buf: &[u8]) -> Result<(), AnyBackendError> {
+        match self {
+            AnyBackend::File(f) => f.write_at(offset, buf).map_err(AnyBackendError::File),
+            AnyBackend::Memory(m) => m.write_at(offset, buf).map_err(AnyBackendError::Memory),
+        }
+    }
+
+    fn set_len(&mut self, new_size: u64) -> Result<(), AnyBackendError> {
+        match self {
+            AnyBackend::File(f) => f.set_len(new_size).map_err(AnyBackendError::File),
+            AnyBackend::Memory(m) => m.set_len(new_size).map_err(AnyBackendError::Memory),
+        }
+    }
+}
+
+impl hal::Sync for AnyBackend {
+    fn sync_data(&mut self) -> Result<(), AnyBackendError> {
+        match self {
+            AnyBackend::File(f) => hal::Sync::sync_data(f).map_err(AnyBackendError::File),
+            AnyBackend::Memory(m) => hal::Sync::sync_data(m).map_err(AnyBackendError::Memory),
+        }
+    }
+
+    fn sync_all(&mut self) -> Result<(), AnyBackendError> {
+        match self {
+            AnyBackend::File(f) => hal::Sync::sync_all(f).map_err(AnyBackendError::File),
+            AnyBackend::Memory(m) => hal::Sync::sync_all(m).map_err(AnyBackendError::Memory),
+        }
+    }
+}
 
 /// Names of extensions that were persisted in the database file.
 #[derive(Clone, Debug, Default)]
@@ -53,7 +158,7 @@ impl MissingExtensions {
 /// Shared state for the database, protected by `Mutex`/`RwLock`.
 pub(crate) struct DatabaseInner {
     /// The storage engine providing B-tree operations.
-    pub storage: Mutex<StorageEngine<FileBackend>>,
+    pub storage: Mutex<StorageEngine<AnyBackend>>,
     /// Write lock: only one write transaction at a time.
     pub write_mutex: Mutex<()>,
     /// Current snapshot (latest committed root pointers).
@@ -107,22 +212,19 @@ impl Database {
     /// Opens or creates a database at the configured location.
     ///
     /// For persistent mode, creates the file if it doesn't exist, or opens
-    /// an existing database file. Loads the schema cache from the Schema Store.
+    /// an existing database file. For in-memory mode, creates a fresh
+    /// database in RAM. Loads the schema cache from the Schema Store.
     ///
     /// # Errors
     ///
-    /// Returns an error if the file cannot be opened, the format is invalid,
-    /// or in-memory mode is requested (not yet implemented).
+    /// Returns an error if the file cannot be opened or the format is invalid.
     pub fn open(config: DatabaseConfig) -> Result<Self, Error> {
         match &config.mode {
             StorageMode::Persistent { path } => {
                 let path = path.clone();
                 Self::open_persistent(&path, config)
             }
-            StorageMode::InMemory => Err(Error::Storage(StorageError {
-                message: "in-memory mode is not yet implemented (Task 27)".to_string(),
-                source: None,
-            })),
+            StorageMode::InMemory => Self::open_in_memory(config),
         }
     }
 
@@ -139,8 +241,9 @@ impl Database {
         };
 
         // Try to open; if it fails, create.
-        let backend = FileBackend::open_or_create(backend_config).map_err(map_hal_err)?;
-        let file_len = backend.len().map_err(map_hal_err)?;
+        let file_backend = FileBackend::open_or_create(backend_config).map_err(map_hal_err)?;
+        let file_len = file_backend.len().map_err(map_hal_err)?;
+        let backend = AnyBackend::File(file_backend);
 
         let engine = if file_len == 0 {
             StorageEngine::create(backend, engine_config)?
@@ -148,9 +251,29 @@ impl Database {
             StorageEngine::open(backend, engine_config)?
         };
 
+        Self::finish_open(engine, config)
+    }
+
+    fn open_in_memory(config: DatabaseConfig) -> Result<Self, Error> {
+        let engine_config = StorageEngineConfig {
+            page_size: config.page_size,
+            buffer_pool_frames: config.buffer_pool_frames,
+            application_id: 0,
+        };
+
+        let backend = AnyBackend::Memory(MemoryBackend::new());
+        let engine = StorageEngine::create(backend, engine_config)?;
+
+        Self::finish_open(engine, config)
+    }
+
+    /// Shared initialization after the storage engine is created or opened.
+    fn finish_open(
+        engine: StorageEngine<AnyBackend>,
+        config: DatabaseConfig,
+    ) -> Result<Self, Error> {
         let snapshot = engine.current_snapshot();
 
-        // Load schema from Schema Store B-tree.
         let mut engine = engine;
         let mut schema_cache = SchemaCache::new();
         let mut persisted_names = PersistedExtensionNames::default();
@@ -191,7 +314,7 @@ impl Database {
     /// Collects all key-value pairs from a B-tree range scan.
     #[allow(clippy::type_complexity)]
     fn collect_range(
-        engine: &mut StorageEngine<FileBackend>,
+        engine: &mut StorageEngine<AnyBackend>,
         root: PageId,
         start: &[u8],
         end: &[u8],
@@ -202,7 +325,7 @@ impl Database {
     /// Loads types, property keys, counters, hierarchy edges, and extension
     /// names from the Schema Store B-tree into the schema cache.
     fn load_schema(
-        engine: &mut StorageEngine<FileBackend>,
+        engine: &mut StorageEngine<AnyBackend>,
         snapshot: &Snapshot,
         cache: &mut SchemaCache,
         persisted_names: &mut PersistedExtensionNames,
@@ -398,6 +521,32 @@ impl Database {
         engine.rule_names()
     }
 
+    /// Saves the in-memory database contents to a file.
+    ///
+    /// Only available when the database is using in-memory storage.
+    /// The resulting file is a valid database file that can be opened
+    /// with [`DatabaseConfig::persistent`](super::config::DatabaseConfig::persistent).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the database is not using in-memory storage
+    /// or if the file write fails.
+    pub fn save_to_file(&self, path: &Path) -> Result<(), Error> {
+        let engine = self.inner.storage.lock().unwrap();
+        match engine.backend() {
+            AnyBackend::Memory(mem) => mem.save_to_file(path).map_err(|e| {
+                Error::Storage(StorageError {
+                    message: format!("snapshot save failed: {e}"),
+                    source: None,
+                })
+            }),
+            AnyBackend::File(_) => Err(Error::Storage(StorageError {
+                message: "save_to_file is only available for in-memory databases".to_string(),
+                source: None,
+            })),
+        }
+    }
+
     /// Returns extensions that are persisted in the database but not
     /// currently registered in memory.
     pub fn missing_extensions(&self) -> MissingExtensions {
@@ -499,9 +648,9 @@ mod tests {
     }
 
     #[test]
-    fn in_memory_mode_not_yet_implemented() {
-        let result = Database::open(DatabaseConfig::in_memory());
-        assert!(result.is_err());
+    fn open_in_memory_database() {
+        let db = Database::open(DatabaseConfig::in_memory()).unwrap();
+        let _rtx = db.read_txn().unwrap();
     }
 
     #[test]

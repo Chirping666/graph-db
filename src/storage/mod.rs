@@ -171,6 +171,11 @@ impl<B: StorageBackend> StorageEngine<B> {
         &mut self.buffer_pool
     }
 
+    /// Returns a reference to the backend.
+    pub fn backend(&self) -> &B {
+        &self.backend
+    }
+
     /// Returns a mutable reference to the backend.
     pub fn backend_mut(&mut self) -> &mut B {
         &mut self.backend
