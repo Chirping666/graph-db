@@ -19,6 +19,23 @@ use crate::types::{
 /// underlying storage.
 ///
 /// This trait is object-safe and can be used as `&dyn GraphView`.
+///
+/// # Examples
+///
+/// `GraphView` is used by constraint validators and inference rules to
+/// inspect the graph state. Access it through `ReadTransaction` or
+/// `WriteTransaction`:
+///
+/// ```no_run
+/// use graph_db::schema::GraphView;
+/// use graph_db::NodeId;
+///
+/// fn check_graph(view: &dyn GraphView) {
+///     if let Some(node) = view.get_node(NodeId(1)) {
+///         println!("Found node with {} types", node.type_labels.len());
+///     }
+/// }
+/// ```
 pub trait GraphView {
     /// Returns the node with the given id, or `None` if not found.
     fn get_node(&self, id: NodeId) -> Option<&Node>;

@@ -40,6 +40,38 @@ use super::write_buffer::{SchemaChange, WriteBuffer};
 /// either, changes are discarded automatically.
 ///
 /// `WriteTransaction` is `!Send` and `!Sync` per design decision A12.
+///
+/// # Examples
+///
+/// ```
+/// use graph_db::db::database::Database;
+/// use graph_db::db::config::DatabaseConfig;
+/// use graph_db::db::builders::{NodeBuilder, EdgeBuilder, TypeDefinitionBuilder};
+/// use graph_db::types::Value;
+///
+/// let db = Database::open(DatabaseConfig::in_memory()).unwrap();
+/// let mut wtx = db.write_txn().unwrap();
+///
+/// // Register types and property keys
+/// let person = wtx.register_type(TypeDefinitionBuilder::node_type("Person").build()).unwrap();
+/// let knows = wtx.register_type(TypeDefinitionBuilder::edge_type("knows").build()).unwrap();
+/// let name = wtx.get_or_create_property_key("name").unwrap();
+///
+/// // Insert data
+/// let alice = wtx.insert_node(
+///     NodeBuilder::new().type_label(person).property(name, Value::String("Alice".into())).build()
+/// ).unwrap();
+/// let bob = wtx.insert_node(
+///     NodeBuilder::new().type_label(person).property(name, Value::String("Bob".into())).build()
+/// ).unwrap();
+/// wtx.insert_edge(EdgeBuilder::new(alice, bob).type_label(knows).build()).unwrap();
+///
+/// // Read-your-own-writes
+/// assert_eq!(wtx.node_count().unwrap(), 2);
+///
+/// // Commit
+/// wtx.commit().unwrap();
+/// ```
 pub struct WriteTransaction<'db> {
     pub(crate) inner: &'db DatabaseInner,
     pub(crate) snapshot: Arc<Snapshot>,

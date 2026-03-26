@@ -21,6 +21,22 @@ use crate::types::{EdgeId, NodeId, PropertyKeyId, PropertyMap, TypeId, Value};
 ///
 /// Does **not** implement `Eq` because several variants contain
 /// [`PropertyMap`] or [`Value`], which transitively contain `f64`.
+///
+/// # Examples
+///
+/// ```
+/// use graph_db::inference::InferredFact;
+/// use graph_db::{NodeId, TypeId, PropertyKeyId, Value};
+/// use std::collections::BTreeMap;
+///
+/// let fact = InferredFact::NewEdge {
+///     type_labels: vec![TypeId(1)],
+///     source: NodeId(10),
+///     target: NodeId(20),
+///     properties: BTreeMap::new(),
+/// };
+/// assert!(matches!(fact, InferredFact::NewEdge { .. }));
+/// ```
 #[derive(Clone, Debug)]
 pub enum InferredFact {
     /// Infer a new node to be inserted into the graph.
@@ -81,6 +97,18 @@ pub enum InferredFact {
 ///
 /// Contains a list of inferred facts and the name of the rule that
 /// produced them.
+///
+/// # Examples
+///
+/// ```
+/// use graph_db::inference::InferenceResult;
+///
+/// let result = InferenceResult {
+///     facts: vec![],
+///     rule_name: "my_rule".into(),
+/// };
+/// assert!(result.facts.is_empty());
+/// ```
 #[derive(Clone, Debug)]
 pub struct InferenceResult {
     /// The inferred facts produced by the rule.
@@ -95,6 +123,15 @@ pub struct InferenceResult {
 
 /// Controls whether inference results are written to the graph or returned
 /// without persisting.
+///
+/// # Examples
+///
+/// ```
+/// use graph_db::InferenceMode;
+///
+/// let mode = InferenceMode::Ephemeral;
+/// assert_ne!(mode, InferenceMode::Materialized);
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum InferenceMode {
     /// Return inferred facts without writing them to the graph.
@@ -108,6 +145,18 @@ pub enum InferenceMode {
 // ---------------------------------------------------------------------------
 
 /// Records which rule produced a materialized inference result and when.
+///
+/// # Examples
+///
+/// ```
+/// use graph_db::ProvenanceRecord;
+///
+/// let rec = ProvenanceRecord {
+///     rule_name: "inverse_edge".into(),
+///     materialized_at: 5,
+/// };
+/// assert_eq!(rec.rule_name, "inverse_edge");
+/// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ProvenanceRecord {
     /// The name of the inference rule that produced this result.
@@ -123,6 +172,16 @@ pub struct ProvenanceRecord {
 ///
 /// Derives `Eq`, `Ord`, and `Hash` because it does not contain [`Value`]
 /// and is used as a `BTreeMap` key.
+///
+/// # Examples
+///
+/// ```
+/// use graph_db::inference::InferredEntity;
+/// use graph_db::NodeId;
+///
+/// let entity = InferredEntity::Node(NodeId(42));
+/// assert!(matches!(entity, InferredEntity::Node(_)));
+/// ```
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum InferredEntity {
     /// An inferred node.
@@ -161,6 +220,18 @@ pub enum InferredEntity {
 
 /// Maps indices in an [`InferenceResult::facts`] vector to the actual IDs
 /// assigned when those facts were materialized.
+///
+/// # Examples
+///
+/// ```
+/// use graph_db::MaterializedMapping;
+///
+/// let mapping = MaterializedMapping {
+///     new_node_ids: vec![],
+///     new_edge_ids: vec![],
+/// };
+/// assert!(mapping.new_node_ids.is_empty());
+/// ```
 #[derive(Clone, Debug)]
 pub struct MaterializedMapping {
     /// Pairs of `(fact_index, assigned_node_id)` for `NewNode` facts.

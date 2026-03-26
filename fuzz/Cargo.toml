@@ -1,0 +1,28 @@
+[package]
+name = "graph_db-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.graph_db]
+path = ".."
+
+# Prevent this from interfering with workspaces
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "fuzz_record_deser"
+path = "fuzz_targets/fuzz_record_deser.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_api_operations"
+path = "fuzz_targets/fuzz_api_operations.rs"
+doc = false

@@ -20,6 +20,19 @@ use crate::types::{PropertyKeyId, TypeId, TypeKind};
 // ---------------------------------------------------------------------------
 
 /// Errors related to the type system and schema.
+///
+/// # Examples
+///
+/// ```
+/// use graph_db::error::SchemaError;
+/// use graph_db::TypeKind;
+///
+/// let err = SchemaError::DuplicateTypeName {
+///     name: "Person".into(),
+///     kind: TypeKind::Node,
+/// };
+/// assert!(format!("{err}").contains("Person"));
+/// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SchemaError {
     /// A type with the same name and kind already exists.
@@ -96,6 +109,16 @@ impl fmt::Display for SchemaError {
 // ---------------------------------------------------------------------------
 
 /// Errors indicating a requested entity was not found.
+///
+/// # Examples
+///
+/// ```
+/// use graph_db::error::NotFoundError;
+/// use graph_db::NodeId;
+///
+/// let err = NotFoundError::Node(NodeId(42));
+/// assert!(format!("{err}").contains("42"));
+/// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum NotFoundError {
     /// A node with the given id was not found.
@@ -126,6 +149,18 @@ impl fmt::Display for NotFoundError {
 // ---------------------------------------------------------------------------
 
 /// Errors from the storage layer.
+///
+/// # Examples
+///
+/// ```
+/// use graph_db::StorageError;
+///
+/// let err = StorageError {
+///     message: "disk full".into(),
+///     source: None,
+/// };
+/// assert!(format!("{err}").contains("disk full"));
+/// ```
 #[derive(Debug)]
 pub struct StorageError {
     /// A human-readable description of the error.
@@ -151,6 +186,15 @@ impl fmt::Display for StorageError {
 // ---------------------------------------------------------------------------
 
 /// Errors related to transaction lifecycle.
+///
+/// # Examples
+///
+/// ```
+/// use graph_db::TransactionError;
+///
+/// let err = TransactionError::ReadOnly;
+/// assert!(format!("{err}").contains("read-only"));
+/// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TransactionError {
     /// Attempted a write operation on a read-only transaction.
@@ -182,6 +226,15 @@ impl fmt::Display for TransactionError {
 // ---------------------------------------------------------------------------
 
 /// Errors related to the inference subsystem.
+///
+/// # Examples
+///
+/// ```
+/// use graph_db::InferenceError;
+///
+/// let err = InferenceError::RuleNotFound("my_rule".into());
+/// assert!(format!("{err}").contains("my_rule"));
+/// ```
 #[derive(Clone, Debug)]
 pub enum InferenceError {
     /// The requested inference rule was not found.
@@ -216,6 +269,19 @@ impl fmt::Display for InferenceError {
 ///
 /// All public API methods return `Result<T, Error>`. Each variant wraps
 /// a more specific error type.
+///
+/// # Examples
+///
+/// ```
+/// use graph_db::error::{Error, SchemaError};
+/// use graph_db::TypeKind;
+///
+/// let err: Error = SchemaError::DuplicateTypeName {
+///     name: "X".into(),
+///     kind: TypeKind::Node,
+/// }.into();
+/// assert!(matches!(err, Error::Schema(_)));
+/// ```
 #[derive(Debug)]
 pub enum Error {
     /// A schema/type-system error.

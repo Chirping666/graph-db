@@ -189,12 +189,14 @@ unsafe impl Sync for DatabaseInner {}
 ///
 /// # Examples
 ///
-/// ```no_run
+/// ```
 /// use graph_db::db::database::Database;
 /// use graph_db::db::config::DatabaseConfig;
 ///
-/// let db = Database::open(DatabaseConfig::persistent("/tmp/my.db")).unwrap();
+/// // Open an in-memory database
+/// let db = Database::open(DatabaseConfig::in_memory()).unwrap();
 /// let rtx = db.read_txn().unwrap();
+/// assert_eq!(rtx.node_count().unwrap(), 0);
 /// ```
 pub struct Database {
     pub(crate) inner: Arc<DatabaseInner>,
@@ -218,6 +220,15 @@ impl Database {
     /// # Errors
     ///
     /// Returns an error if the file cannot be opened or the format is invalid.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use graph_db::db::database::Database;
+    /// use graph_db::db::config::DatabaseConfig;
+    ///
+    /// let db = Database::open(DatabaseConfig::in_memory()).unwrap();
+    /// ```
     pub fn open(config: DatabaseConfig) -> Result<Self, Error> {
         match &config.mode {
             StorageMode::Persistent { path } => {

@@ -11,6 +11,15 @@ use core::fmt;
 /// Allows code generic over [`StorageBackend`](super::traits::StorageBackend)
 /// to make decisions based on error category without knowing the concrete
 /// error type. Follows the `embedded-hal` `ErrorKind` pattern.
+///
+/// # Examples
+///
+/// ```
+/// use graph_db::StorageErrorKind;
+///
+/// let kind = StorageErrorKind::OutOfBounds;
+/// assert_eq!(format!("{kind}"), "out of bounds");
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum StorageErrorKind {

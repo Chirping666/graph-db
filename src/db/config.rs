@@ -8,6 +8,15 @@ use std::path::PathBuf;
 
 /// Determines whether the database uses persistent file storage or in-memory
 /// storage.
+///
+/// # Examples
+///
+/// ```
+/// use graph_db::db::config::StorageMode;
+///
+/// let mode = StorageMode::InMemory;
+/// assert!(matches!(mode, StorageMode::InMemory));
+/// ```
 #[derive(Clone, Debug)]
 pub enum StorageMode {
     /// Persistent storage backed by a file at the given path.

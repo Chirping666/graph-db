@@ -15,6 +15,23 @@ use crate::types::{Edge, EdgeId, Node, NodeId, TypeId};
 // ---------------------------------------------------------------------------
 
 /// Describes a change to a single node within a transaction.
+///
+/// # Examples
+///
+/// ```
+/// use graph_db::constraint::NodeChange;
+/// use graph_db::types::{Node, NodeId};
+/// use std::collections::BTreeMap;
+///
+/// let node = Node {
+///     id: NodeId(1),
+///     type_labels: vec![],
+///     properties: BTreeMap::new(),
+///     is_anonymous: false,
+/// };
+/// let change = NodeChange::Inserted(node);
+/// assert!(matches!(change, NodeChange::Inserted(_)));
+/// ```
 #[derive(Clone, Debug)]
 pub enum NodeChange {
     /// A new node was inserted.
@@ -31,6 +48,24 @@ pub enum NodeChange {
 }
 
 /// Describes a change to a single edge within a transaction.
+///
+/// # Examples
+///
+/// ```
+/// use graph_db::constraint::EdgeChange;
+/// use graph_db::types::{Edge, EdgeId, NodeId};
+/// use std::collections::BTreeMap;
+///
+/// let edge = Edge {
+///     id: EdgeId(1),
+///     type_labels: vec![],
+///     source: NodeId(10),
+///     target: NodeId(20),
+///     properties: BTreeMap::new(),
+/// };
+/// let change = EdgeChange::Inserted(edge);
+/// assert!(matches!(change, EdgeChange::Inserted(_)));
+/// ```
 #[derive(Clone, Debug)]
 pub enum EdgeChange {
     /// A new edge was inserted.
@@ -158,6 +193,20 @@ impl<'a> ChangeSet<'a> {
 // ---------------------------------------------------------------------------
 
 /// A constraint violation produced by a [`ConstraintValidator`].
+///
+/// # Examples
+///
+/// ```
+/// use graph_db::constraint::{ConstraintViolation, ViolationSubject};
+/// use graph_db::NodeId;
+///
+/// let v = ConstraintViolation {
+///     violation_kind: "missing_name".into(),
+///     message: "Node 1 has no name".into(),
+///     subject: Some(ViolationSubject::Node(NodeId(1))),
+/// };
+/// assert_eq!(v.violation_kind, "missing_name");
+/// ```
 #[derive(Clone, Debug)]
 pub struct ConstraintViolation {
     /// A machine-readable kind identifier (e.g., `"required_property_missing"`).
@@ -169,6 +218,16 @@ pub struct ConstraintViolation {
 }
 
 /// Identifies the entity that caused a [`ConstraintViolation`].
+///
+/// # Examples
+///
+/// ```
+/// use graph_db::constraint::ViolationSubject;
+/// use graph_db::NodeId;
+///
+/// let subject = ViolationSubject::Node(NodeId(5));
+/// assert!(matches!(subject, ViolationSubject::Node(_)));
+/// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ViolationSubject {
     /// A node caused the violation.

@@ -26,6 +26,32 @@ use super::write_buffer::WriteBuffer;
 /// database and does not block other readers or writers.
 ///
 /// `ReadTransaction` is `!Send` and `!Sync` per design decision A12.
+///
+/// # Examples
+///
+/// ```
+/// use graph_db::db::database::Database;
+/// use graph_db::db::config::DatabaseConfig;
+/// use graph_db::db::builders::{NodeBuilder, TypeDefinitionBuilder};
+/// use graph_db::types::Value;
+///
+/// let db = Database::open(DatabaseConfig::in_memory()).unwrap();
+///
+/// // Insert some data
+/// let mut wtx = db.write_txn().unwrap();
+/// let t = wtx.register_type(TypeDefinitionBuilder::node_type("Person").build()).unwrap();
+/// let k = wtx.get_or_create_property_key("name").unwrap();
+/// let id = wtx.insert_node(
+///     NodeBuilder::new().type_label(t).property(k, Value::String("Alice".into())).build()
+/// ).unwrap();
+/// wtx.commit().unwrap();
+///
+/// // Read it back
+/// let rtx = db.read_txn().unwrap();
+/// assert_eq!(rtx.node_count().unwrap(), 1);
+/// let node = rtx.get_node(id).unwrap().unwrap();
+/// assert_eq!(node.properties.get(&k), Some(&Value::String("Alice".into())));
+/// ```
 pub struct ReadTransaction<'db> {
     pub(crate) inner: &'db DatabaseInner,
     pub(crate) snapshot: Arc<Snapshot>,

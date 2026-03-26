@@ -22,6 +22,18 @@ use core::fmt;
 ///
 /// Wraps a `u64`. The value `0` is reserved as a null sentinel
 /// (see [`NodeId::NULL`] and [`NodeId::is_null`]).
+///
+/// # Examples
+///
+/// ```
+/// use graph_db::NodeId;
+///
+/// let id = NodeId(42);
+/// assert_eq!(id.0, 42);
+/// assert!(!id.is_null());
+/// assert!(NodeId::NULL.is_null());
+/// assert_eq!(format!("{id}"), "42");
+/// ```
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct NodeId(pub u64);
 
@@ -45,6 +57,16 @@ impl fmt::Display for NodeId {
 ///
 /// Wraps a `u64`. The value `0` is reserved as a null sentinel
 /// (see [`EdgeId::NULL`] and [`EdgeId::is_null`]).
+///
+/// # Examples
+///
+/// ```
+/// use graph_db::EdgeId;
+///
+/// let id = EdgeId(7);
+/// assert!(!id.is_null());
+/// assert!(EdgeId::NULL.is_null());
+/// ```
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct EdgeId(pub u64);
 
@@ -68,6 +90,16 @@ impl fmt::Display for EdgeId {
 ///
 /// Wraps a `u32`. The value `0` is reserved as a null sentinel
 /// (see [`TypeId::NULL`] and [`TypeId::is_null`]).
+///
+/// # Examples
+///
+/// ```
+/// use graph_db::TypeId;
+///
+/// let id = TypeId(1);
+/// assert!(!id.is_null());
+/// assert!(TypeId::NULL.is_null());
+/// ```
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct TypeId(pub u32);
 
@@ -91,6 +123,16 @@ impl fmt::Display for TypeId {
 ///
 /// Wraps a `u32`. The value `0` is reserved as a null sentinel
 /// (see [`PropertyKeyId::NULL`] and [`PropertyKeyId::is_null`]).
+///
+/// # Examples
+///
+/// ```
+/// use graph_db::PropertyKeyId;
+///
+/// let id = PropertyKeyId(3);
+/// assert!(!id.is_null());
+/// assert!(PropertyKeyId::NULL.is_null());
+/// ```
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct PropertyKeyId(pub u32);
 
@@ -119,6 +161,24 @@ impl fmt::Display for PropertyKeyId {
 /// `Value` represents any value that can be stored as a property on a node
 /// or edge. It does **not** implement `Eq` because the `F64` variant
 /// contains an `f64`, which follows IEEE 754 semantics (NaN ≠ NaN).
+///
+/// # Examples
+///
+/// ```
+/// use graph_db::{Value, NodeId};
+///
+/// let s = Value::String("hello".into());
+/// assert_eq!(s.as_str(), Some("hello"));
+///
+/// let n = Value::I64(42);
+/// assert_eq!(n.as_i64(), Some(42));
+/// assert!(!n.is_null());
+///
+/// assert!(Value::Null.is_null());
+///
+/// let r = Value::NodeRef(NodeId(7));
+/// assert_eq!(r.as_node_ref(), Some(NodeId(7)));
+/// ```
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
     /// The null/absent value.
@@ -252,6 +312,19 @@ impl Value {
 /// Used in [`PropertyDeclaration`] to specify what kind of value a property
 /// expects. Unlike [`Value`], this enum is `Eq` because it contains no
 /// floating-point data.
+///
+/// # Examples
+///
+/// ```
+/// use graph_db::{Value, ValueTypeDescriptor};
+///
+/// let desc = ValueTypeDescriptor::I64;
+/// assert!(Value::I64(42).matches_descriptor(&desc));
+/// assert!(!Value::String("hi".into()).matches_descriptor(&desc));
+///
+/// // Any matches everything
+/// assert!(Value::Null.matches_descriptor(&ValueTypeDescriptor::Any));
+/// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ValueTypeDescriptor {
     /// Matches any value, including [`Value::Null`].
@@ -294,6 +367,24 @@ pub type PropertyMap = BTreeMap<PropertyKeyId, Value>;
 ///
 /// Does **not** implement `Eq` because [`PropertyMap`] contains [`Value`]
 /// which contains `f64`.
+///
+/// # Examples
+///
+/// ```
+/// use graph_db::{Node, NodeId, TypeId, Value, PropertyKeyId};
+/// use std::collections::BTreeMap;
+///
+/// let mut props = BTreeMap::new();
+/// props.insert(PropertyKeyId(1), Value::String("Alice".into()));
+///
+/// let node = Node {
+///     id: NodeId(1),
+///     type_labels: vec![TypeId(1)],
+///     properties: props,
+///     is_anonymous: false,
+/// };
+/// assert_eq!(node.id, NodeId(1));
+/// ```
 #[derive(Clone, Debug, PartialEq)]
 pub struct Node {
     /// The unique identifier of this node.
@@ -313,6 +404,23 @@ pub struct Node {
 ///
 /// Does **not** implement `Eq` because [`PropertyMap`] contains [`Value`]
 /// which contains `f64`.
+///
+/// # Examples
+///
+/// ```
+/// use graph_db::{Edge, EdgeId, NodeId, TypeId};
+/// use std::collections::BTreeMap;
+///
+/// let edge = Edge {
+///     id: EdgeId(1),
+///     type_labels: vec![TypeId(1)],
+///     source: NodeId(10),
+///     target: NodeId(20),
+///     properties: BTreeMap::new(),
+/// };
+/// assert_eq!(edge.source, NodeId(10));
+/// assert_eq!(edge.target, NodeId(20));
+/// ```
 #[derive(Clone, Debug, PartialEq)]
 pub struct Edge {
     /// The unique identifier of this edge.
@@ -332,6 +440,16 @@ pub struct Edge {
 // ---------------------------------------------------------------------------
 
 /// Distinguishes whether a type definition applies to nodes or edges.
+///
+/// # Examples
+///
+/// ```
+/// use graph_db::TypeKind;
+///
+/// let k = TypeKind::Node;
+/// assert_eq!(format!("{k}"), "Node");
+/// assert_ne!(TypeKind::Node, TypeKind::Edge);
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum TypeKind {
     /// A type that classifies nodes.
@@ -357,6 +475,22 @@ impl fmt::Display for TypeKind {
 ///
 /// Does **not** implement `Eq` because `metadata` is a [`PropertyMap`]
 /// which may contain `f64` values.
+///
+/// # Examples
+///
+/// ```
+/// use graph_db::{PropertyDeclaration, PropertyKeyId, ValueTypeDescriptor};
+/// use std::collections::BTreeMap;
+///
+/// let decl = PropertyDeclaration {
+///     key: PropertyKeyId(1),
+///     value_type: ValueTypeDescriptor::String,
+///     required: true,
+///     multi_valued: false,
+///     metadata: BTreeMap::new(),
+/// };
+/// assert!(decl.required);
+/// ```
 #[derive(Clone, Debug, PartialEq)]
 pub struct PropertyDeclaration {
     /// The property key this declaration is about.
@@ -379,6 +513,25 @@ pub struct PropertyDeclaration {
 ///
 /// Does **not** implement `Eq` because `metadata` and `property_declarations`
 /// transitively contain [`Value`] which contains `f64`.
+///
+/// # Examples
+///
+/// ```
+/// use graph_db::{TypeDefinition, TypeId, TypeKind};
+/// use std::collections::BTreeMap;
+///
+/// let td = TypeDefinition {
+///     id: TypeId(1),
+///     name: "Person".into(),
+///     kind: TypeKind::Node,
+///     supertypes: vec![],
+///     property_declarations: vec![],
+///     open: true,
+///     metadata: BTreeMap::new(),
+/// };
+/// assert_eq!(td.name, "Person");
+/// assert_eq!(td.kind, TypeKind::Node);
+/// ```
 #[derive(Clone, Debug, PartialEq)]
 pub struct TypeDefinition {
     /// The unique identifier of this type.

@@ -79,6 +79,21 @@ impl std::error::Error for MemoryError {}
 /// `MemoryBackend` stores data in a plain `Vec<u8>`, immutable access is safe
 /// for concurrent reads. The storage engine wraps it in `RwLock` as with any
 /// backend.
+///
+/// # Examples
+///
+/// ```
+/// use graph_db::MemoryBackend;
+///
+/// let backend = MemoryBackend::new();
+/// assert!(backend.as_bytes().is_empty());
+///
+/// let backend = MemoryBackend::with_size(4096);
+/// assert_eq!(backend.as_bytes().len(), 4096);
+///
+/// let backend = MemoryBackend::from_bytes(vec![1, 2, 3]);
+/// assert_eq!(backend.as_bytes(), &[1, 2, 3]);
+/// ```
 pub struct MemoryBackend {
     data: Vec<u8>,
 }
