@@ -157,11 +157,11 @@ impl BTreeCursor {
             if self.current_cell < self.cached_cells.len() {
                 let (key, value) = &self.cached_cells[self.current_cell];
 
-                if let Some(end) = &self.end_key
-                    && key.as_slice() >= end.as_slice()
-                {
-                    self.exhausted = true;
-                    return Ok(None);
+                if let Some(end) = &self.end_key {
+                    if key.as_slice() >= end.as_slice() {
+                        self.exhausted = true;
+                        return Ok(None);
+                    }
                 }
 
                 self.current_cell += 1;

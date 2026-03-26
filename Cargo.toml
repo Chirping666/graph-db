@@ -1,7 +1,23 @@
 [package]
 name = "graph_db"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
+rust-version = "1.82"
+description = "An embedded graph database with extensible schema, pluggable constraint validation, and pluggable inference hooks"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/user/graph-db"
+documentation = "https://docs.rs/graph_db"
+readme = "README.md"
+keywords = ["graph-database", "embedded-database", "property-graph", "ontology", "knowledge-graph"]
+categories = ["database-implementations", "data-structures"]
+exclude = [
+    "tasks/",
+    "fuzz/",
+    "completion-reports/",
+    "00*.md",
+    "01*.md",
+    "CLAUDE.md",
+]
 
 [features]
 default = ["std"]

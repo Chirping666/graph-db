@@ -1,14 +1,74 @@
 //! An embedded graph database with extensible schema and pluggable inference.
 //!
 //! `graph_db` is a single-file, embedded graph database engine implemented
-//! entirely in Rust. It provides a typed property graph model with support
-//! for pluggable constraint validation and inference rules.
+//! entirely in Rust. It provides a typed property graph model with pluggable
+//! constraint validation and inference rules, designed as a foundation for
+//! ontology systems, knowledge graphs, and typed graph applications.
+//!
+//! The crate provides **mechanism**, not **policy**: you define the types,
+//! constraints, and inference rules for your domain. No ontology vocabulary
+//! (OWL, RDF, SKOS, etc.) is built in.
+//!
+//! # Quick Start
+//!
+//! ```rust
+//! use graph_db::db::{Database, DatabaseConfig, NodeBuilder, TypeDefinitionBuilder};
+//! use graph_db::{Value, Error};
+//!
+//! fn main() -> Result<(), Error> {
+//!     // Open an in-memory database
+//!     let db = Database::open(DatabaseConfig::in_memory())?;
+//!
+//!     // Register a type and property key, then insert a node
+//!     let (person_type, name_key) = {
+//!         let mut wtx = db.write_txn()?;
+//!         let person = wtx.register_type(
+//!             TypeDefinitionBuilder::node_type("Person").build(),
+//!         )?;
+//!         let name = wtx.get_or_create_property_key("name")?;
+//!         wtx.insert_node(
+//!             NodeBuilder::new()
+//!                 .type_label(person)
+//!                 .property(name, Value::String("Alice".into()))
+//!                 .build(),
+//!         )?;
+//!         wtx.commit()?;
+//!         (person, name)
+//!     };
+//!
+//!     // Query it back
+//!     let rtx = db.read_txn()?;
+//!     let people = rtx.nodes_by_type(person_type, false)?;
+//!     assert_eq!(people.len(), 1);
+//!     assert_eq!(
+//!         people[0].properties.get(&name_key),
+//!         Some(&Value::String("Alice".into())),
+//!     );
+//!     Ok(())
+//! }
+//! ```
 //!
 //! # Architecture
 //!
-//! The crate is organized into layers: core types (`types`, `schema`,
-//! `constraint`, `inference`, `error`) form the `no_std + alloc` foundation,
-//! while the storage engine, buffer pool, and database facade require `std`.
+//! ```text
+//! ┌─────────────────────────────────────┐
+//! │  Application / Downstream Crate     │
+//! ├─────────────────────────────────────┤
+//! │  Public API (Database, Transactions)│
+//! ├─────────────────────────────────────┤
+//! │  Query & Traversal Engine           │
+//! ├─────────────────────────────────────┤
+//! │  Storage Engine (B+ trees, pages)   │
+//! ├─────────────────────────────────────┤
+//! │  HAL (Hardware Abstraction Layer)   │
+//! ├──────────────┬──────────────────────┤
+//! │  std backend  │  In-memory backend  │
+//! └──────────────┴──────────────────────┘
+//! ```
+//!
+//! The core types (`types`, `schema`, `constraint`, `inference`, `error`)
+//! form the `no_std + alloc` foundation. The storage engine, buffer pool,
+//! and database facade require `std`.
 //!
 //! # Feature Flags
 //!
@@ -18,6 +78,14 @@
 //!   (`String`, `Vec`, `BTreeMap`). This is the minimum feature set for
 //!   using the type system, schema traits, and error types in a `no_std`
 //!   environment.
+//!
+//! # Thread Safety
+//!
+//! [`db::Database`] is `Send + Sync` and can be shared across threads
+//! (e.g., via `Arc<Database>`). Transactions ([`db::ReadTransaction`],
+//! [`db::WriteTransaction`]) are `!Send` and `!Sync` — they hold
+//! buffer-pool references and must be used on the thread that created them.
+//! Extract owned data (nodes, edges, IDs) to share results across threads.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 

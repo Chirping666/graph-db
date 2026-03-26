@@ -808,14 +808,14 @@ impl ConstraintValidator for TypeCheckValidator {
         for change in changes.edge_changes() {
             if let graph_db::constraint::EdgeChange::Inserted(edge) = change {
                 // Check that source has the required type.
-                if let Some(src) = graph.get_node(edge.source)
-                    && !src.type_labels.contains(&self.required_node_type)
-                {
-                    violations.push(ConstraintViolation {
-                        violation_kind: "type_check".to_string(),
-                        message: "source missing required type".to_string(),
-                        subject: Some(ViolationSubject::Edge(edge.id)),
-                    });
+                if let Some(src) = graph.get_node(edge.source) {
+                    if !src.type_labels.contains(&self.required_node_type) {
+                        violations.push(ConstraintViolation {
+                            violation_kind: "type_check".to_string(),
+                            message: "source missing required type".to_string(),
+                            subject: Some(ViolationSubject::Edge(edge.id)),
+                        });
+                    }
                 }
             }
         }
