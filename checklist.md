@@ -8,6 +8,8 @@ Execute items in order. Each step has a verification command — do not proceed 
 it passes. Steps marked **⚠ WORKSPACE BROKEN** indicate that `cargo check --workspace`
 will fail until a later gate restores it; use per-crate checks in those intervals.
 
+After completing each step and passing its verification, mark it done by changing - [ ] to - [x] in this file.
+
 ---
 
 ## Phase 0: Pre-Migration Snapshot
