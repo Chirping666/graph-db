@@ -14,11 +14,9 @@ readme = "README.md"
 keywords = ["graph-database", "embedded-database", "property-graph", "ontology", "knowledge-graph"]
 categories = ["database-implementations", "data-structures"]
 exclude = [
-    "tasks/",
+    "archive/",
     "fuzz/",
-    "completion-reports/",
-    "00*.md",
-    "01*.md",
+    "030-workspace-redesign.md",
     "CLAUDE.md",
 ]
 
