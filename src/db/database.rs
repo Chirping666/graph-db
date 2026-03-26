@@ -243,6 +243,7 @@ impl Database {
     /// let db = Database::open(DatabaseConfig::in_memory()).unwrap();
     /// ```
     pub fn open(config: DatabaseConfig) -> Result<Self, Error> {
+        config.validate()?;
         match &config.mode {
             StorageMode::Persistent { path } => {
                 let path = path.clone();
@@ -363,7 +364,13 @@ impl Database {
         let type_entries = Self::collect_range(engine, schema_root, &[0x01], &[0x02])?;
         for (key, value) in &type_entries {
             if key.len() >= 5 && key[0] == 0x01 {
-                let type_id = TypeId(u32::from_be_bytes(key[1..5].try_into().unwrap()));
+                let id_bytes: [u8; 4] = key[1..5].try_into().map_err(|_| {
+                    StorageError {
+                        message: "schema: invalid type_id key length".into(),
+                        source: None,
+                    }
+                })?;
+                let type_id = TypeId(u32::from_be_bytes(id_bytes));
                 let td = serialization::deserialize_type_definition(type_id, value)?;
                 cache.load_type(td)?;
             }
@@ -373,8 +380,13 @@ impl Database {
         let pk_entries = Self::collect_range(engine, schema_root, &[0x02], &[0x03])?;
         for (key, value) in &pk_entries {
             if key.len() >= 5 && key[0] == 0x02 {
-                let key_id =
-                    PropertyKeyId(u32::from_be_bytes(key[1..5].try_into().unwrap()));
+                let id_bytes: [u8; 4] = key[1..5].try_into().map_err(|_| {
+                    StorageError {
+                        message: "schema: invalid property_key_id key length".into(),
+                        source: None,
+                    }
+                })?;
+                let key_id = PropertyKeyId(u32::from_be_bytes(id_bytes));
                 let name = serialization::deserialize_property_key_name(value)?;
                 cache.load_property_key(key_id, name);
             }
@@ -384,7 +396,13 @@ impl Database {
         let counter_entries = Self::collect_range(engine, schema_root, &[0x03], &[0x04])?;
         for (key, value) in &counter_entries {
             if key.len() >= 2 && key[0] == 0x03 && value.len() >= 8 {
-                let counter_val = u64::from_le_bytes(value[..8].try_into().unwrap());
+                let counter_bytes: [u8; 8] = value[..8].try_into().map_err(|_| {
+                    StorageError {
+                        message: "schema: invalid counter value length".into(),
+                        source: None,
+                    }
+                })?;
+                let counter_val = u64::from_le_bytes(counter_bytes);
                 match key[1] {
                     0x01 => cache.next_node_id = counter_val,
                     0x02 => cache.next_edge_id = counter_val,
@@ -403,8 +421,13 @@ impl Database {
         for (key, _value) in &ext_entries {
             if key.len() >= 4 && key[0] == 0x05 {
                 let kind = key[1];
-                let name_len =
-                    u16::from_le_bytes(key[2..4].try_into().unwrap()) as usize;
+                let name_len_bytes: [u8; 2] = key[2..4].try_into().map_err(|_| {
+                    StorageError {
+                        message: "schema: invalid extension name_len field length".into(),
+                        source: None,
+                    }
+                })?;
+                let name_len = u16::from_le_bytes(name_len_bytes) as usize;
                 if key.len() >= 4 + name_len {
                     if let Ok(name) = std::str::from_utf8(&key[4..4 + name_len]) {
                         match kind {

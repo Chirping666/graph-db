@@ -124,6 +124,37 @@ impl DatabaseConfig {
         self.inference_cache_size = size;
         self
     }
+
+    /// Validates the configuration, returning an error if any values are invalid.
+    ///
+    /// Called automatically by [`Database::open`](super::Database::open).
+    /// Use this to check configuration values when constructing a `DatabaseConfig`
+    /// directly (bypassing the builder methods).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `page_size` is not a power of two or is less than 512.
+    pub fn validate(&self) -> Result<(), crate::error::Error> {
+        if !self.page_size.is_power_of_two() {
+            return Err(crate::error::Error::Storage(crate::error::StorageError {
+                message: format!(
+                    "page_size {} is not a power of two",
+                    self.page_size
+                ),
+                source: None,
+            }));
+        }
+        if self.page_size < 512 {
+            return Err(crate::error::Error::Storage(crate::error::StorageError {
+                message: format!(
+                    "page_size {} is less than minimum 512",
+                    self.page_size
+                ),
+                source: None,
+            }));
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -177,5 +208,25 @@ mod tests {
     #[should_panic(expected = "at least 512")]
     fn page_size_minimum() {
         DatabaseConfig::in_memory().page_size(256);
+    }
+
+    #[test]
+    fn validate_catches_invalid_page_size() {
+        let mut config = DatabaseConfig::in_memory();
+        config.page_size = 1000; // bypass builder assert
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn validate_catches_small_page_size() {
+        let mut config = DatabaseConfig::in_memory();
+        config.page_size = 256; // bypass builder assert
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn validate_accepts_valid_config() {
+        let config = DatabaseConfig::in_memory();
+        assert!(config.validate().is_ok());
     }
 }

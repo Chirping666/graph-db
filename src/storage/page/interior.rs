@@ -73,9 +73,12 @@ impl InteriorPage {
         }
 
         let cell_count = u16::from_le_bytes([page_data[24], page_data[25]]);
-        let right_child = PageId(u64::from_le_bytes(
-            page_data[26..34].try_into().unwrap(),
-        ));
+        let right_child_bytes: [u8; 8] =
+            page_data[26..34].try_into().map_err(|_| StorageError {
+                message: "interior page: invalid right_child field length".into(),
+                source: None,
+            })?;
+        let right_child = PageId(u64::from_le_bytes(right_child_bytes));
         let free_start = u16::from_le_bytes([page_data[34], page_data[35]]);
         let padding = u16::from_le_bytes([page_data[36], page_data[37]]);
         if padding != 0 {
@@ -104,9 +107,13 @@ impl InteriorPage {
                 });
             }
 
-            let left_child = PageId(u64::from_le_bytes(
-                page_data[cell_offset..cell_offset + 8].try_into().unwrap(),
-            ));
+            let left_child_bytes: [u8; 8] = page_data[cell_offset..cell_offset + 8]
+                .try_into()
+                .map_err(|_| StorageError {
+                    message: format!("interior page: invalid left_child length at cell {i}"),
+                    source: None,
+                })?;
+            let left_child = PageId(u64::from_le_bytes(left_child_bytes));
             let key_len = u16::from_le_bytes([
                 page_data[cell_offset + 8],
                 page_data[cell_offset + 9],

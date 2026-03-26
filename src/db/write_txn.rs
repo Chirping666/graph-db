@@ -18,7 +18,8 @@ use crate::schema::{PropertyKeyRegistryView, TypeRegistryView};
 use crate::storage::btree::cow::CowResult;
 use crate::storage::page::PageId;
 use crate::storage::serialization;
-use crate::storage::snapshot::Snapshot;
+use crate::storage::snapshot::{Snapshot, SnapshotRoots};
+use crate::storage::StorageEngine;
 use crate::types::{
     Edge, EdgeId, Node, NodeId, PropertyKeyId, TypeDefinition, TypeId, Value,
 };
@@ -1011,13 +1012,13 @@ impl<'db> WriteTransaction<'db> {
                     let key = serialization::encode_schema_type_key(td.id);
                     let value = serialization::serialize_type_definition(td);
                     let cow = engine.insert(roots.schema_store, &key, &value, txn_id)?;
-                    self.apply_cow(&mut roots.schema_store, &cow, txn_id, &mut all_freed);
+                    apply_cow(&mut roots.schema_store, &cow, txn_id, &mut all_freed);
 
                     // Hierarchy edges
                     for st in &td.supertypes {
                         let hkey = serialization::encode_schema_hierarchy_key(td.id, *st);
                         let cow = engine.insert(roots.schema_store, &hkey, &[], txn_id)?;
-                        self.apply_cow(
+                        apply_cow(
                             &mut roots.schema_store,
                             &cow,
                             txn_id,
@@ -1029,7 +1030,7 @@ impl<'db> WriteTransaction<'db> {
                     let key = serialization::encode_schema_property_key(pk.id);
                     let value = serialization::serialize_property_key_name(&pk.name);
                     let cow = engine.insert(roots.schema_store, &key, &value, txn_id)?;
-                    self.apply_cow(&mut roots.schema_store, &cow, txn_id, &mut all_freed);
+                    apply_cow(&mut roots.schema_store, &cow, txn_id, &mut all_freed);
                 }
                 SchemaChange::ExtensionNameRegistered { kind, name } => {
                     let kind_byte = match *kind {
@@ -1039,7 +1040,7 @@ impl<'db> WriteTransaction<'db> {
                     };
                     let key = serialization::encode_schema_extension_key(kind_byte, name);
                     let cow = engine.insert(roots.schema_store, &key, &[], txn_id)?;
-                    self.apply_cow(&mut roots.schema_store, &cow, txn_id, &mut all_freed);
+                    apply_cow(&mut roots.schema_store, &cow, txn_id, &mut all_freed);
                 }
                 SchemaChange::ExtensionNameUnregistered { kind, name } => {
                     let kind_byte = match *kind {
@@ -1049,7 +1050,7 @@ impl<'db> WriteTransaction<'db> {
                     };
                     let key = serialization::encode_schema_extension_key(kind_byte, name);
                     if let Some(cow) = engine.delete(roots.schema_store, &key, txn_id)? {
-                        self.apply_cow(
+                        apply_cow(
                             &mut roots.schema_store,
                             &cow,
                             txn_id,
@@ -1071,7 +1072,7 @@ impl<'db> WriteTransaction<'db> {
                 },
             );
             if let Some(cow) = engine.delete(roots.schema_store, &key, txn_id)? {
-                self.apply_cow(
+                apply_cow(
                     &mut roots.schema_store,
                     &cow,
                     txn_id,
@@ -1082,7 +1083,7 @@ impl<'db> WriteTransaction<'db> {
         for (entity, record) in &self.pending_provenance {
             let (key, value) = ProvenanceRegistry::encode_entry(entity, record);
             let cow = engine.insert(roots.schema_store, &key, &value, txn_id)?;
-            self.apply_cow(&mut roots.schema_store, &cow, txn_id, &mut all_freed);
+            apply_cow(&mut roots.schema_store, &cow, txn_id, &mut all_freed);
         }
 
         // Persist ID counters
@@ -1095,269 +1096,15 @@ impl<'db> WriteTransaction<'db> {
             let key = serialization::encode_schema_counter_key(counter_name);
             let value = counter_val.to_le_bytes().to_vec();
             let cow = engine.insert(roots.schema_store, &key, &value, txn_id)?;
-            self.apply_cow(&mut roots.schema_store, &cow, txn_id, &mut all_freed);
+            apply_cow(&mut roots.schema_store, &cow, txn_id, &mut all_freed);
         }
 
-        // Node inserts
-        for node in self.buffer.inserted_nodes().values() {
-            let key = serialization::encode_node_key(node.id);
-            let props = serialization::serialize_properties(&node.properties);
-            let record = serialization::NodeRecord::from_node(node, &props, None);
-            let value = record.serialize();
-            let cow = engine.insert(roots.node_store, &key, &value, txn_id)?;
-            self.apply_cow(&mut roots.node_store, &cow, txn_id, &mut all_freed);
-
-            // Type index entries
-            for tid in &node.type_labels {
-                let tkey =
-                    serialization::encode_type_index_key(0x00, *tid, node.id.0);
-                let cow = engine.insert(roots.type_index, &tkey, &[], txn_id)?;
-                self.apply_cow(&mut roots.type_index, &cow, txn_id, &mut all_freed);
-            }
-        }
-
-        // Node updates
-        for (before, after) in self.buffer.updated_nodes().values() {
-            let key = serialization::encode_node_key(after.id);
-            let props = serialization::serialize_properties(&after.properties);
-            let record = serialization::NodeRecord::from_node(after, &props, None);
-            let value = record.serialize();
-            let cow = engine.insert(roots.node_store, &key, &value, txn_id)?;
-            self.apply_cow(&mut roots.node_store, &cow, txn_id, &mut all_freed);
-
-            // Remove old type index entries, add new ones
-            for tid in &before.type_labels {
-                if !after.type_labels.contains(tid) {
-                    let tkey = serialization::encode_type_index_key(
-                        0x00, *tid, after.id.0,
-                    );
-                    if let Some(cow) = engine.delete(roots.type_index, &tkey, txn_id)? {
-                        self.apply_cow(
-                            &mut roots.type_index,
-                            &cow,
-                            txn_id,
-                            &mut all_freed,
-                        );
-                    }
-                }
-            }
-            for tid in &after.type_labels {
-                if !before.type_labels.contains(tid) {
-                    let tkey = serialization::encode_type_index_key(
-                        0x00, *tid, after.id.0,
-                    );
-                    let cow = engine.insert(roots.type_index, &tkey, &[], txn_id)?;
-                    self.apply_cow(
-                        &mut roots.type_index,
-                        &cow,
-                        txn_id,
-                        &mut all_freed,
-                    );
-                }
-            }
-        }
-
-        // Node deletes
-        for node in self.buffer.deleted_nodes().values() {
-            let key = serialization::encode_node_key(node.id);
-            if let Some(cow) = engine.delete(roots.node_store, &key, txn_id)? {
-                self.apply_cow(&mut roots.node_store, &cow, txn_id, &mut all_freed);
-            }
-            for tid in &node.type_labels {
-                let tkey =
-                    serialization::encode_type_index_key(0x00, *tid, node.id.0);
-                if let Some(cow) = engine.delete(roots.type_index, &tkey, txn_id)? {
-                    self.apply_cow(
-                        &mut roots.type_index,
-                        &cow,
-                        txn_id,
-                        &mut all_freed,
-                    );
-                }
-            }
-        }
-
-        // Edge inserts
-        for edge in self.buffer.inserted_edges().values() {
-            let key = serialization::encode_edge_key(edge.id);
-            let props = serialization::serialize_properties(&edge.properties);
-            let record = serialization::EdgeRecord::from_edge(edge, &props, None);
-            let value = record.serialize();
-            let cow = engine.insert(roots.edge_store, &key, &value, txn_id)?;
-            self.apply_cow(&mut roots.edge_store, &cow, txn_id, &mut all_freed);
-
-            // Adjacency index
-            for tid in &edge.type_labels {
-                let okey = serialization::encode_outgoing_adj_key(
-                    edge.source, *tid, edge.id,
-                );
-                let cow = engine.insert(roots.outgoing_adj, &okey, &[], txn_id)?;
-                self.apply_cow(
-                    &mut roots.outgoing_adj,
-                    &cow,
-                    txn_id,
-                    &mut all_freed,
-                );
-
-                let ikey = serialization::encode_incoming_adj_key(
-                    edge.target, *tid, edge.id,
-                );
-                let cow = engine.insert(roots.incoming_adj, &ikey, &[], txn_id)?;
-                self.apply_cow(
-                    &mut roots.incoming_adj,
-                    &cow,
-                    txn_id,
-                    &mut all_freed,
-                );
-
-                let tkey = serialization::encode_type_index_key(
-                    0x01, *tid, edge.id.0,
-                );
-                let cow = engine.insert(roots.type_index, &tkey, &[], txn_id)?;
-                self.apply_cow(&mut roots.type_index, &cow, txn_id, &mut all_freed);
-            }
-        }
-
-        // Edge updates
-        for (before, after) in self.buffer.updated_edges().values() {
-            let key = serialization::encode_edge_key(after.id);
-            let props = serialization::serialize_properties(&after.properties);
-            let record = serialization::EdgeRecord::from_edge(after, &props, None);
-            let value = record.serialize();
-            let cow = engine.insert(roots.edge_store, &key, &value, txn_id)?;
-            self.apply_cow(&mut roots.edge_store, &cow, txn_id, &mut all_freed);
-
-            // Update type index + adjacency for changed type labels
-            for tid in &before.type_labels {
-                if !after.type_labels.contains(tid) {
-                    // Remove old adjacency entries
-                    let okey = serialization::encode_outgoing_adj_key(
-                        after.source, *tid, after.id,
-                    );
-                    if let Some(cow) =
-                        engine.delete(roots.outgoing_adj, &okey, txn_id)?
-                    {
-                        self.apply_cow(
-                            &mut roots.outgoing_adj,
-                            &cow,
-                            txn_id,
-                            &mut all_freed,
-                        );
-                    }
-                    let ikey = serialization::encode_incoming_adj_key(
-                        after.target, *tid, after.id,
-                    );
-                    if let Some(cow) =
-                        engine.delete(roots.incoming_adj, &ikey, txn_id)?
-                    {
-                        self.apply_cow(
-                            &mut roots.incoming_adj,
-                            &cow,
-                            txn_id,
-                            &mut all_freed,
-                        );
-                    }
-                    let tkey = serialization::encode_type_index_key(
-                        0x01, *tid, after.id.0,
-                    );
-                    if let Some(cow) =
-                        engine.delete(roots.type_index, &tkey, txn_id)?
-                    {
-                        self.apply_cow(
-                            &mut roots.type_index,
-                            &cow,
-                            txn_id,
-                            &mut all_freed,
-                        );
-                    }
-                }
-            }
-            for tid in &after.type_labels {
-                if !before.type_labels.contains(tid) {
-                    let okey = serialization::encode_outgoing_adj_key(
-                        after.source, *tid, after.id,
-                    );
-                    let cow =
-                        engine.insert(roots.outgoing_adj, &okey, &[], txn_id)?;
-                    self.apply_cow(
-                        &mut roots.outgoing_adj,
-                        &cow,
-                        txn_id,
-                        &mut all_freed,
-                    );
-                    let ikey = serialization::encode_incoming_adj_key(
-                        after.target, *tid, after.id,
-                    );
-                    let cow =
-                        engine.insert(roots.incoming_adj, &ikey, &[], txn_id)?;
-                    self.apply_cow(
-                        &mut roots.incoming_adj,
-                        &cow,
-                        txn_id,
-                        &mut all_freed,
-                    );
-                    let tkey = serialization::encode_type_index_key(
-                        0x01, *tid, after.id.0,
-                    );
-                    let cow = engine.insert(roots.type_index, &tkey, &[], txn_id)?;
-                    self.apply_cow(
-                        &mut roots.type_index,
-                        &cow,
-                        txn_id,
-                        &mut all_freed,
-                    );
-                }
-            }
-        }
-
-        // Edge deletes
-        for edge in self.buffer.deleted_edge_ids().values() {
-            let key = serialization::encode_edge_key(edge.id);
-            if let Some(cow) = engine.delete(roots.edge_store, &key, txn_id)? {
-                self.apply_cow(&mut roots.edge_store, &cow, txn_id, &mut all_freed);
-            }
-            for tid in &edge.type_labels {
-                let okey = serialization::encode_outgoing_adj_key(
-                    edge.source, *tid, edge.id,
-                );
-                if let Some(cow) =
-                    engine.delete(roots.outgoing_adj, &okey, txn_id)?
-                {
-                    self.apply_cow(
-                        &mut roots.outgoing_adj,
-                        &cow,
-                        txn_id,
-                        &mut all_freed,
-                    );
-                }
-                let ikey = serialization::encode_incoming_adj_key(
-                    edge.target, *tid, edge.id,
-                );
-                if let Some(cow) =
-                    engine.delete(roots.incoming_adj, &ikey, txn_id)?
-                {
-                    self.apply_cow(
-                        &mut roots.incoming_adj,
-                        &cow,
-                        txn_id,
-                        &mut all_freed,
-                    );
-                }
-                let tkey = serialization::encode_type_index_key(
-                    0x01, *tid, edge.id.0,
-                );
-                if let Some(cow) =
-                    engine.delete(roots.type_index, &tkey, txn_id)?
-                {
-                    self.apply_cow(
-                        &mut roots.type_index,
-                        &cow,
-                        txn_id,
-                        &mut all_freed,
-                    );
-                }
-            }
-        }
+        commit_node_changes(
+            &self.buffer, &mut engine, &mut roots, txn_id, &mut all_freed,
+        )?;
+        commit_edge_changes(
+            &self.buffer, &mut engine, &mut roots, txn_id, &mut all_freed,
+        )?;
 
         // Step 4: Atomic commit
         let new_snapshot = engine.commit(roots, all_freed)?;
@@ -1374,20 +1121,6 @@ impl<'db> WriteTransaction<'db> {
         }
 
         Ok(())
-    }
-
-    /// Helper to apply a CowResult to a root pointer and track freed pages.
-    fn apply_cow(
-        &self,
-        root: &mut PageId,
-        cow: &CowResult,
-        txn_id: u64,
-        freed: &mut Vec<(u64, PageId)>,
-    ) {
-        *root = cow.new_root;
-        for &page in &cow.freed_pages {
-            freed.push((txn_id, page));
-        }
     }
 
     /// Explicitly aborts the transaction, discarding all changes.
@@ -1991,4 +1724,202 @@ impl<'a, 'db> SnapshotReader for BaseSnapshotReader<'a, 'db> {
         }
         edges
     }
+}
+
+/// Applies a CowResult to a root pointer and tracks freed pages.
+fn apply_cow(
+    root: &mut PageId,
+    cow: &CowResult,
+    txn_id: u64,
+    freed: &mut Vec<(u64, PageId)>,
+) {
+    *root = cow.new_root;
+    for &page in &cow.freed_pages {
+        freed.push((txn_id, page));
+    }
+}
+
+/// Inserts edge adjacency and type index entries for the given type labels.
+#[allow(clippy::too_many_arguments)]
+fn insert_edge_indexes<B: crate::backend::StorageBackend>(
+    engine: &mut StorageEngine<B>,
+    roots: &mut SnapshotRoots,
+    txn_id: u64,
+    freed: &mut Vec<(u64, PageId)>,
+    edge_id: EdgeId,
+    source: NodeId,
+    target: NodeId,
+    type_labels: &[TypeId],
+) -> Result<(), Error> {
+    for tid in type_labels {
+        let okey = serialization::encode_outgoing_adj_key(source, *tid, edge_id);
+        let cow = engine.insert(roots.outgoing_adj, &okey, &[], txn_id)?;
+        apply_cow(&mut roots.outgoing_adj, &cow, txn_id, freed);
+
+        let ikey = serialization::encode_incoming_adj_key(target, *tid, edge_id);
+        let cow = engine.insert(roots.incoming_adj, &ikey, &[], txn_id)?;
+        apply_cow(&mut roots.incoming_adj, &cow, txn_id, freed);
+
+        let tkey = serialization::encode_type_index_key(0x01, *tid, edge_id.0);
+        let cow = engine.insert(roots.type_index, &tkey, &[], txn_id)?;
+        apply_cow(&mut roots.type_index, &cow, txn_id, freed);
+    }
+    Ok(())
+}
+
+/// Materializes node inserts, updates, and deletes into the B-tree.
+fn commit_node_changes<B: crate::backend::StorageBackend>(
+    buffer: &WriteBuffer,
+    engine: &mut StorageEngine<B>,
+    roots: &mut SnapshotRoots,
+    txn_id: u64,
+    freed: &mut Vec<(u64, PageId)>,
+) -> Result<(), Error> {
+    for node in buffer.inserted_nodes().values() {
+        let key = serialization::encode_node_key(node.id);
+        let props = serialization::serialize_properties(&node.properties);
+        let record = serialization::NodeRecord::from_node(node, &props, None);
+        let value = record.serialize();
+        let cow = engine.insert(roots.node_store, &key, &value, txn_id)?;
+        apply_cow(&mut roots.node_store, &cow, txn_id, freed);
+
+        for tid in &node.type_labels {
+            let tkey = serialization::encode_type_index_key(0x00, *tid, node.id.0);
+            let cow = engine.insert(roots.type_index, &tkey, &[], txn_id)?;
+            apply_cow(&mut roots.type_index, &cow, txn_id, freed);
+        }
+    }
+
+    for (before, after) in buffer.updated_nodes().values() {
+        let key = serialization::encode_node_key(after.id);
+        let props = serialization::serialize_properties(&after.properties);
+        let record = serialization::NodeRecord::from_node(after, &props, None);
+        let value = record.serialize();
+        let cow = engine.insert(roots.node_store, &key, &value, txn_id)?;
+        apply_cow(&mut roots.node_store, &cow, txn_id, freed);
+
+        for tid in &before.type_labels {
+            if !after.type_labels.contains(tid) {
+                let tkey = serialization::encode_type_index_key(0x00, *tid, after.id.0);
+                if let Some(cow) = engine.delete(roots.type_index, &tkey, txn_id)? {
+                    apply_cow(&mut roots.type_index, &cow, txn_id, freed);
+                }
+            }
+        }
+        for tid in &after.type_labels {
+            if !before.type_labels.contains(tid) {
+                let tkey = serialization::encode_type_index_key(0x00, *tid, after.id.0);
+                let cow = engine.insert(roots.type_index, &tkey, &[], txn_id)?;
+                apply_cow(&mut roots.type_index, &cow, txn_id, freed);
+            }
+        }
+    }
+
+    for node in buffer.deleted_nodes().values() {
+        let key = serialization::encode_node_key(node.id);
+        if let Some(cow) = engine.delete(roots.node_store, &key, txn_id)? {
+            apply_cow(&mut roots.node_store, &cow, txn_id, freed);
+        }
+        for tid in &node.type_labels {
+            let tkey = serialization::encode_type_index_key(0x00, *tid, node.id.0);
+            if let Some(cow) = engine.delete(roots.type_index, &tkey, txn_id)? {
+                apply_cow(&mut roots.type_index, &cow, txn_id, freed);
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Materializes edge inserts, updates, and deletes into the B-tree.
+fn commit_edge_changes<B: crate::backend::StorageBackend>(
+    buffer: &WriteBuffer,
+    engine: &mut StorageEngine<B>,
+    roots: &mut SnapshotRoots,
+    txn_id: u64,
+    freed: &mut Vec<(u64, PageId)>,
+) -> Result<(), Error> {
+    for edge in buffer.inserted_edges().values() {
+        let key = serialization::encode_edge_key(edge.id);
+        let props = serialization::serialize_properties(&edge.properties);
+        let record = serialization::EdgeRecord::from_edge(edge, &props, None);
+        let value = record.serialize();
+        let cow = engine.insert(roots.edge_store, &key, &value, txn_id)?;
+        apply_cow(&mut roots.edge_store, &cow, txn_id, freed);
+
+        insert_edge_indexes(
+            engine, roots, txn_id, freed,
+            edge.id, edge.source, edge.target, &edge.type_labels,
+        )?;
+    }
+
+    for (before, after) in buffer.updated_edges().values() {
+        let key = serialization::encode_edge_key(after.id);
+        let props = serialization::serialize_properties(&after.properties);
+        let record = serialization::EdgeRecord::from_edge(after, &props, None);
+        let value = record.serialize();
+        let cow = engine.insert(roots.edge_store, &key, &value, txn_id)?;
+        apply_cow(&mut roots.edge_store, &cow, txn_id, freed);
+
+        let removed: Vec<TypeId> = before.type_labels.iter()
+            .filter(|t| !after.type_labels.contains(t))
+            .copied()
+            .collect();
+        let added: Vec<TypeId> = after.type_labels.iter()
+            .filter(|t| !before.type_labels.contains(t))
+            .copied()
+            .collect();
+        delete_edge_indexes(
+            engine, roots, txn_id, freed,
+            after.id, after.source, after.target, &removed,
+        )?;
+        insert_edge_indexes(
+            engine, roots, txn_id, freed,
+            after.id, after.source, after.target, &added,
+        )?;
+    }
+
+    for edge in buffer.deleted_edge_ids().values() {
+        let key = serialization::encode_edge_key(edge.id);
+        if let Some(cow) = engine.delete(roots.edge_store, &key, txn_id)? {
+            apply_cow(&mut roots.edge_store, &cow, txn_id, freed);
+        }
+        delete_edge_indexes(
+            engine, roots, txn_id, freed,
+            edge.id, edge.source, edge.target, &edge.type_labels,
+        )?;
+    }
+
+    Ok(())
+}
+
+/// Deletes edge adjacency and type index entries for the given type labels.
+#[allow(clippy::too_many_arguments)]
+fn delete_edge_indexes<B: crate::backend::StorageBackend>(
+    engine: &mut StorageEngine<B>,
+    roots: &mut SnapshotRoots,
+    txn_id: u64,
+    freed: &mut Vec<(u64, PageId)>,
+    edge_id: EdgeId,
+    source: NodeId,
+    target: NodeId,
+    type_labels: &[TypeId],
+) -> Result<(), Error> {
+    for tid in type_labels {
+        let okey = serialization::encode_outgoing_adj_key(source, *tid, edge_id);
+        if let Some(cow) = engine.delete(roots.outgoing_adj, &okey, txn_id)? {
+            apply_cow(&mut roots.outgoing_adj, &cow, txn_id, freed);
+        }
+
+        let ikey = serialization::encode_incoming_adj_key(target, *tid, edge_id);
+        if let Some(cow) = engine.delete(roots.incoming_adj, &ikey, txn_id)? {
+            apply_cow(&mut roots.incoming_adj, &cow, txn_id, freed);
+        }
+
+        let tkey = serialization::encode_type_index_key(0x01, *tid, edge_id.0);
+        if let Some(cow) = engine.delete(roots.type_index, &tkey, txn_id)? {
+            apply_cow(&mut roots.type_index, &cow, txn_id, freed);
+        }
+    }
+    Ok(())
 }

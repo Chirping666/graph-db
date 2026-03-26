@@ -397,8 +397,9 @@ impl Drop for FileLockGuard {
         #[cfg(windows)]
         {
             use windows_sys::Win32::Storage::FileSystem::UnlockFileEx;
-            // SAFETY: `self.handle` is a valid file handle.
+            // SAFETY: `OVERLAPPED` is valid when zero-initialized.
             let mut overlapped = unsafe { core::mem::zeroed() };
+            // SAFETY: `self.handle` is a valid file handle. Best-effort unlock.
             unsafe {
                 UnlockFileEx(self.handle, 0, u32::MAX, u32::MAX, &mut overlapped);
             }
@@ -435,6 +436,8 @@ impl LockableBackend for FileBackend {
             };
 
             let handle = self.file.as_raw_handle();
+            // SAFETY: `OVERLAPPED` is a plain-old-data struct that is valid
+            // when zero-initialized (all fields are integers or pointers).
             let mut overlapped = unsafe { core::mem::zeroed() };
             // SAFETY: `handle` is a valid file handle from `self.file`.
             let result = unsafe {

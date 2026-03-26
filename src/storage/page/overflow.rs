@@ -50,12 +50,18 @@ impl OverflowPage {
             });
         }
 
-        let next_page = PageId(u64::from_le_bytes(
-            page_data[24..32].try_into().unwrap(),
-        ));
-        let data_length = u32::from_le_bytes(
-            page_data[32..36].try_into().unwrap(),
-        );
+        let next_page_bytes: [u8; 8] =
+            page_data[24..32].try_into().map_err(|_| StorageError {
+                message: "overflow page: invalid next_page field length".into(),
+                source: None,
+            })?;
+        let next_page = PageId(u64::from_le_bytes(next_page_bytes));
+        let data_len_bytes: [u8; 4] =
+            page_data[32..36].try_into().map_err(|_| StorageError {
+                message: "overflow page: invalid data_length field length".into(),
+                source: None,
+            })?;
+        let data_length = u32::from_le_bytes(data_len_bytes);
 
         let max = Self::max_payload(page_size);
         if data_length as usize > max {

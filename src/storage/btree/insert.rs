@@ -10,7 +10,7 @@ use crate::storage::allocator::PageAllocator;
 use crate::storage::buffer_pool::BufferPool;
 use crate::storage::page::interior::{InteriorCell, InteriorPage};
 use crate::storage::page::leaf::{LeafCell, LeafCellValue, LeafPage};
-use crate::storage::page::{PageId, PageType};
+use crate::storage::page::PageId;
 
 use super::cow::CowResult;
 use super::BTree;
@@ -25,12 +25,7 @@ struct PromotedKey {
     right_child: PageId,
 }
 
-/// Tracks the traversal path from root to leaf.
-struct PathEntry {
-    page_id: PageId,
-    /// Index of the child pointer that was followed (cell index, or `cells.len()` for right_child).
-    child_index: usize,
-}
+use super::PathEntry;
 
 #[allow(clippy::too_many_arguments)]
 impl BTree {
@@ -86,174 +81,113 @@ impl BTree {
         }
 
         // Traverse to the leaf, recording the path
-        let mut path: Vec<PathEntry> = Vec::new();
-        let mut current = root;
+        let (path, leaf_page_id) = self.traverse_to_leaf(root, key, pool, backend)?;
 
-        loop {
-            let frame = pool.fetch_page(current, backend)?;
-            let page_data = pool.get_page_data(frame);
-            let page_type = PageType::try_from(page_data[8]).map_err(|v| StorageError {
-                message: format!("unknown page type: {v:#04x}"),
-                source: None,
-            })?;
+        let frame = pool.fetch_page(leaf_page_id, backend)?;
+        let page_data = pool.get_page_data(frame);
+        let mut leaf = LeafPage::parse(page_data, self.config.page_size)?;
+        let old_next = leaf.next_leaf;
+        let old_prev = leaf.prev_leaf;
+        pool.unpin_page(frame, false);
 
-            match page_type {
-                PageType::Interior => {
-                    let interior = InteriorPage::parse(page_data, self.config.page_size)?;
-                    // Find child index
-                    let cells = interior.cells();
-                    let pos = cells.partition_point(|c| c.key.as_slice() <= key);
-                    let child = if pos == cells.len() {
-                        interior.right_child
-                    } else {
-                        cells[pos].left_child
-                    };
-                    pool.unpin_page(frame, false);
-                    path.push(PathEntry {
-                        page_id: current,
-                        child_index: pos,
-                    });
-                    current = child;
-                }
-                PageType::Leaf => {
-                    let mut leaf = LeafPage::parse(page_data, self.config.page_size)?;
-                    let old_next = leaf.next_leaf;
-                    let old_prev = leaf.prev_leaf;
-                    pool.unpin_page(frame, false);
-
-                    // Check for duplicate key and replace
-                    if let Some(existing) = leaf.delete_cell(key) {
-                        let _ = existing; // old value discarded
-                    }
-
-                    let new_cell = LeafCell {
-                        key: key.to_vec(),
-                        value: LeafCellValue::Inline(value.to_vec()),
-                    };
-
-                    // Try to insert into the leaf
-                    if leaf.insert_cell(new_cell.clone(), self.config.page_size) {
-                        // Fits — CoW the leaf and path
-                        let new_leaf_id = allocator.allocate_page();
-                        allocated.push(new_leaf_id);
-                        freed.push(current);
-
-                        let leaf_data = LeafPage::build(
-                            new_leaf_id,
-                            txn_id,
-                            leaf.cells(),
-                            old_next,
-                            old_prev,
-                            self.config.page_size,
-                        );
-                        let frame = pool.new_page(new_leaf_id, backend)?;
-                        pool.get_page_data_mut(frame)[..self.config.page_size]
-                            .copy_from_slice(&leaf_data);
-                        pool.unpin_page(frame, true);
-
-                        // Note: neighbor leaf pages are NOT updated here.
-                        // Their prev/next pointers still reference the old page,
-                        // which is correct for range scans within the current snapshot
-                        // since old page data remains valid on disk.
-
-                        // CoW the path from leaf parent to root
-                        let new_root = self.cow_path(
-                            &path,
-                            new_leaf_id,
-                            None,
-                            pool,
-                            allocator,
-                            backend,
-                            txn_id,
-                            &mut freed,
-                            &mut allocated,
-                        )?;
-
-                        return Ok(CowResult {
-                            new_root,
-                            freed_pages: freed,
-                            new_pages: allocated,
-                        });
-                    }
-
-                    // Leaf is full — must split
-                    // Re-add the cell to get the full list, then split
-                    leaf.insert_cell(new_cell, usize::MAX); // force insert for splitting
-                    let (left_cells, right_cells, split_key) = leaf.split();
-
-                    let left_id = allocator.allocate_page();
-                    let right_id = allocator.allocate_page();
-                    allocated.push(left_id);
-                    allocated.push(right_id);
-                    freed.push(current);
-
-                    // Build split pages with correct leaf links
-                    let left_data = LeafPage::build(
-                        left_id,
-                        txn_id,
-                        &left_cells,
-                        right_id,
-                        old_prev,
-                        self.config.page_size,
-                    );
-                    let right_data = LeafPage::build(
-                        right_id,
-                        txn_id,
-                        &right_cells,
-                        old_next,
-                        left_id,
-                        self.config.page_size,
-                    );
-
-                    let lf = pool.new_page(left_id, backend)?;
-                    pool.get_page_data_mut(lf)[..self.config.page_size]
-                        .copy_from_slice(&left_data);
-                    pool.unpin_page(lf, true);
-
-                    let rf = pool.new_page(right_id, backend)?;
-                    pool.get_page_data_mut(rf)[..self.config.page_size]
-                        .copy_from_slice(&right_data);
-                    pool.unpin_page(rf, true);
-
-                    // Note: neighbor leaf pages are NOT CoW-updated here.
-                    // The left page's prev_leaf points to old_prev (valid old page).
-                    // The right page's next_leaf points to old_next (valid old page).
-                    // Cursor range scans work because they follow these pointers
-                    // to read old pages that still have correct data.
-
-                    // Promote split key up
-                    let promoted = PromotedKey {
-                        key: split_key,
-                        left_child: left_id,
-                        right_child: right_id,
-                    };
-
-                    let new_root = self.propagate_split(
-                        &path,
-                        promoted,
-                        pool,
-                        allocator,
-                        backend,
-                        txn_id,
-                        &mut freed,
-                        &mut allocated,
-                    )?;
-
-                    return Ok(CowResult {
-                        new_root,
-                        freed_pages: freed,
-                        new_pages: allocated,
-                    });
-                }
-                _ => {
-                    pool.unpin_page(frame, false);
-                    return Err(StorageError {
-                        message: format!("unexpected page type {page_type} during insert"),
-                        source: None,
-                    });
-                }
-            }
+        // Check for duplicate key and replace
+        if let Some(existing) = leaf.delete_cell(key) {
+            let _ = existing; // old value discarded
         }
+
+        let new_cell = LeafCell {
+            key: key.to_vec(),
+            value: LeafCellValue::Inline(value.to_vec()),
+        };
+
+        // Try to insert into the leaf
+        if leaf.insert_cell(new_cell.clone(), self.config.page_size) {
+            // Fits — CoW the leaf and path
+            let new_leaf_id = allocator.allocate_page();
+            allocated.push(new_leaf_id);
+            freed.push(leaf_page_id);
+
+            let leaf_data = LeafPage::build(
+                new_leaf_id,
+                txn_id,
+                leaf.cells(),
+                old_next,
+                old_prev,
+                self.config.page_size,
+            );
+            let frame = pool.new_page(new_leaf_id, backend)?;
+            pool.get_page_data_mut(frame)[..self.config.page_size]
+                .copy_from_slice(&leaf_data);
+            pool.unpin_page(frame, true);
+
+            let new_root = self.cow_path(
+                &path,
+                new_leaf_id,
+                None,
+                pool,
+                allocator,
+                backend,
+                txn_id,
+                &mut freed,
+                &mut allocated,
+            )?;
+
+            return Ok(CowResult {
+                new_root,
+                freed_pages: freed,
+                new_pages: allocated,
+            });
+        }
+
+        // Leaf is full — must split
+        leaf.insert_cell(new_cell, usize::MAX); // force insert for splitting
+        let (left_cells, right_cells, split_key) = leaf.split();
+
+        let left_id = allocator.allocate_page();
+        let right_id = allocator.allocate_page();
+        allocated.push(left_id);
+        allocated.push(right_id);
+        freed.push(leaf_page_id);
+
+        let left_data = LeafPage::build(
+            left_id, txn_id, &left_cells, right_id, old_prev, self.config.page_size,
+        );
+        let right_data = LeafPage::build(
+            right_id, txn_id, &right_cells, old_next, left_id, self.config.page_size,
+        );
+
+        let left_frame = pool.new_page(left_id, backend)?;
+        pool.get_page_data_mut(left_frame)[..self.config.page_size]
+            .copy_from_slice(&left_data);
+        pool.unpin_page(left_frame, true);
+
+        let right_frame = pool.new_page(right_id, backend)?;
+        pool.get_page_data_mut(right_frame)[..self.config.page_size]
+            .copy_from_slice(&right_data);
+        pool.unpin_page(right_frame, true);
+
+        let promoted = PromotedKey {
+            key: split_key,
+            left_child: left_id,
+            right_child: right_id,
+        };
+
+        let new_root = self.propagate_split(
+            &path,
+            promoted,
+            pool,
+            allocator,
+            backend,
+            txn_id,
+            &mut freed,
+            &mut allocated,
+        )?;
+
+        Ok(CowResult {
+            new_root,
+            freed_pages: freed,
+            new_pages: allocated,
+        })
     }
 
     /// CoW-copies the interior path from leaf parent up to root, replacing the child pointer.
@@ -307,10 +241,10 @@ impl BTree {
                 right_child,
                 self.config.page_size,
             );
-            let f = pool.new_page(new_id, backend)?;
-            pool.get_page_data_mut(f)[..self.config.page_size]
+            let frame = pool.new_page(new_id, backend)?;
+            pool.get_page_data_mut(frame)[..self.config.page_size]
                 .copy_from_slice(&page_bytes);
-            pool.unpin_page(f, true);
+            pool.unpin_page(frame, true);
 
             current_child = new_id;
         }
@@ -346,10 +280,10 @@ impl BTree {
                 promoted.right_child,
                 self.config.page_size,
             );
-            let f = pool.new_page(root_id, backend)?;
-            pool.get_page_data_mut(f)[..self.config.page_size]
+            let frame = pool.new_page(root_id, backend)?;
+            pool.get_page_data_mut(frame)[..self.config.page_size]
                 .copy_from_slice(&page_data);
-            pool.unpin_page(f, true);
+            pool.unpin_page(frame, true);
             return Ok(root_id);
         }
 
@@ -401,41 +335,41 @@ impl BTree {
                     right_child,
                     self.config.page_size,
                 );
-                let f = pool.new_page(new_id, backend)?;
-                pool.get_page_data_mut(f)[..self.config.page_size]
+                let frame = pool.new_page(new_id, backend)?;
+                pool.get_page_data_mut(frame)[..self.config.page_size]
                     .copy_from_slice(&page_bytes);
-                pool.unpin_page(f, true);
+                pool.unpin_page(frame, true);
 
                 // CoW the remaining path above
                 let mut current_child = new_id;
                 for j in (0..i).rev() {
-                    let pe = &path[j];
-                    let pf = pool.fetch_page(pe.page_id, backend)?;
-                    let pd = pool.get_page_data(pf);
-                    let int = InteriorPage::parse(pd, self.config.page_size)?;
-                    pool.unpin_page(pf, false);
+                    let parent_entry = &path[j];
+                    let parent_frame = pool.fetch_page(parent_entry.page_id, backend)?;
+                    let parent_data = pool.get_page_data(parent_frame);
+                    let parent_page = InteriorPage::parse(parent_data, self.config.page_size)?;
+                    pool.unpin_page(parent_frame, false);
 
-                    freed.push(pe.page_id);
+                    freed.push(parent_entry.page_id);
 
-                    let mut c: Vec<InteriorCell> = int.cells().to_vec();
-                    let rc;
-                    if pe.child_index == c.len() {
-                        rc = current_child;
+                    let mut parent_cells: Vec<InteriorCell> = parent_page.cells().to_vec();
+                    let parent_right_child;
+                    if parent_entry.child_index == parent_cells.len() {
+                        parent_right_child = current_child;
                     } else {
-                        c[pe.child_index].left_child = current_child;
-                        rc = int.right_child;
+                        parent_cells[parent_entry.child_index].left_child = current_child;
+                        parent_right_child = parent_page.right_child;
                     }
 
-                    let nid = allocator.allocate_page();
-                    allocated.push(nid);
-                    let pb = InteriorPage::build(
-                        nid, txn_id, &c, rc, self.config.page_size,
+                    let new_parent_id = allocator.allocate_page();
+                    allocated.push(new_parent_id);
+                    let parent_bytes = InteriorPage::build(
+                        new_parent_id, txn_id, &parent_cells, parent_right_child, self.config.page_size,
                     );
-                    let ff = pool.new_page(nid, backend)?;
-                    pool.get_page_data_mut(ff)[..self.config.page_size]
-                        .copy_from_slice(&pb);
-                    pool.unpin_page(ff, true);
-                    current_child = nid;
+                    let new_frame = pool.new_page(new_parent_id, backend)?;
+                    pool.get_page_data_mut(new_frame)[..self.config.page_size]
+                        .copy_from_slice(&parent_bytes);
+                    pool.unpin_page(new_frame, true);
+                    current_child = new_parent_id;
                 }
 
                 return Ok(current_child);
@@ -468,15 +402,15 @@ impl BTree {
                 self.config.page_size,
             );
 
-            let lf = pool.new_page(left_id, backend)?;
-            pool.get_page_data_mut(lf)[..self.config.page_size]
+            let left_frame = pool.new_page(left_id, backend)?;
+            pool.get_page_data_mut(left_frame)[..self.config.page_size]
                 .copy_from_slice(&left_data);
-            pool.unpin_page(lf, true);
+            pool.unpin_page(left_frame, true);
 
-            let rf = pool.new_page(right_id_new, backend)?;
-            pool.get_page_data_mut(rf)[..self.config.page_size]
+            let right_frame = pool.new_page(right_id_new, backend)?;
+            pool.get_page_data_mut(right_frame)[..self.config.page_size]
                 .copy_from_slice(&right_data);
-            pool.unpin_page(rf, true);
+            pool.unpin_page(right_frame, true);
 
             promoted = PromotedKey {
                 key: median_key,
@@ -499,16 +433,19 @@ impl BTree {
                     promoted.right_child,
                     self.config.page_size,
                 );
-                let f = pool.new_page(root_id, backend)?;
-                pool.get_page_data_mut(f)[..self.config.page_size]
+                let frame = pool.new_page(root_id, backend)?;
+                pool.get_page_data_mut(frame)[..self.config.page_size]
                     .copy_from_slice(&root_data);
-                pool.unpin_page(f, true);
+                pool.unpin_page(frame, true);
                 return Ok(root_id);
             }
             // Otherwise continue up the path
         }
 
-        unreachable!("propagate_split should return from within the loop")
+        Err(StorageError {
+            message: "propagate_split exhausted path without producing a root".into(),
+            source: None,
+        })
     }
 
 }

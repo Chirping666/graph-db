@@ -7,6 +7,10 @@
 //! Operations are stateless: the root page ID is passed in and a
 //! new root (for mutations) or result (for reads) is returned.
 
+use crate::error::StorageError;
+use crate::storage::buffer_pool::BufferPool;
+use crate::storage::page::PageId;
+
 pub mod cow;
 pub mod cursor;
 pub mod delete;
@@ -29,10 +33,77 @@ pub struct BTree {
     pub config: BTreeConfig,
 }
 
+/// Tracks one step of the traversal path from root to leaf.
+pub(crate) struct PathEntry {
+    /// The page ID of the interior node at this level.
+    pub(crate) page_id: PageId,
+    /// Index of the child pointer that was followed (cell index, or `cells.len()` for right_child).
+    pub(crate) child_index: usize,
+}
+
 impl BTree {
     /// Creates a new `BTree` with the given configuration.
     pub fn new(config: BTreeConfig) -> Self {
         Self { config }
+    }
+
+    /// Traverses from `root` to the leaf that should contain `key`,
+    /// recording the path of interior nodes visited.
+    ///
+    /// Returns `(path, leaf_page_id)` where path contains one entry per
+    /// interior level traversed. The caller is responsible for fetching
+    /// and parsing the leaf page at `leaf_page_id`.
+    pub(crate) fn traverse_to_leaf<B: crate::backend::ReadAt + crate::backend::WriteAt + crate::backend::Durability>(
+        &self,
+        root: PageId,
+        key: &[u8],
+        pool: &mut BufferPool,
+        backend: &mut B,
+    ) -> Result<(Vec<PathEntry>, PageId), StorageError> {
+        use crate::storage::page::interior::InteriorPage;
+        use crate::storage::page::PageType;
+
+        let mut path: Vec<PathEntry> = Vec::new();
+        let mut current = root;
+
+        loop {
+            let frame = pool.fetch_page(current, backend)?;
+            let page_data = pool.get_page_data(frame);
+            let page_type = PageType::try_from(page_data[8]).map_err(|v| StorageError {
+                message: format!("unknown page type: {v:#04x}"),
+                source: None,
+            })?;
+
+            match page_type {
+                PageType::Interior => {
+                    let interior = InteriorPage::parse(page_data, self.config.page_size)?;
+                    let cells = interior.cells();
+                    let pos = cells.partition_point(|c| c.key.as_slice() <= key);
+                    let child = if pos == cells.len() {
+                        interior.right_child
+                    } else {
+                        cells[pos].left_child
+                    };
+                    pool.unpin_page(frame, false);
+                    path.push(PathEntry {
+                        page_id: current,
+                        child_index: pos,
+                    });
+                    current = child;
+                }
+                PageType::Leaf => {
+                    pool.unpin_page(frame, false);
+                    return Ok((path, current));
+                }
+                _ => {
+                    pool.unpin_page(frame, false);
+                    return Err(StorageError {
+                        message: format!("expected Interior or Leaf, got {:?}", page_type),
+                        source: None,
+                    });
+                }
+            }
+        }
     }
 }
 

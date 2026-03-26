@@ -41,7 +41,8 @@ pub struct Snapshot {
 }
 
 impl Snapshot {
-    /// Returns the root page ID for the B-tree at the given catalog index.
+    /// Returns the root page ID for the B-tree at the given catalog index,
+    /// or `None` if `tree_index >= 8`.
     ///
     /// Index mapping (per `012-design-document.md` §19.1):
     /// - 0: Node Store
@@ -52,21 +53,17 @@ impl Snapshot {
     /// - 5: Schema Store
     /// - 6: ID Freelist
     /// - 7: Page Freelist
-    ///
-    /// # Panics
-    ///
-    /// Panics if `tree_index >= 8`.
-    pub fn root_for_tree(&self, tree_index: usize) -> PageId {
+    pub fn root_for_tree(&self, tree_index: usize) -> Option<PageId> {
         match tree_index {
-            0 => self.roots.node_store,
-            1 => self.roots.edge_store,
-            2 => self.roots.outgoing_adj,
-            3 => self.roots.incoming_adj,
-            4 => self.roots.type_index,
-            5 => self.roots.schema_store,
-            6 => self.roots.id_freelist,
-            7 => self.roots.page_freelist,
-            _ => panic!("tree_index {tree_index} out of range (0..8)"),
+            0 => Some(self.roots.node_store),
+            1 => Some(self.roots.edge_store),
+            2 => Some(self.roots.outgoing_adj),
+            3 => Some(self.roots.incoming_adj),
+            4 => Some(self.roots.type_index),
+            5 => Some(self.roots.schema_store),
+            6 => Some(self.roots.id_freelist),
+            7 => Some(self.roots.page_freelist),
+            _ => None,
         }
     }
 }
@@ -130,15 +127,15 @@ mod tests {
     #[test]
     fn root_for_tree_mapping() {
         let snap = Snapshot::from(&test_superblock());
-        assert_eq!(snap.root_for_tree(0), PageId(10)); // node_store
-        assert_eq!(snap.root_for_tree(5), PageId(15)); // schema_store
-        assert_eq!(snap.root_for_tree(7), PageId(17)); // page_freelist
+        assert_eq!(snap.root_for_tree(0), Some(PageId(10))); // node_store
+        assert_eq!(snap.root_for_tree(5), Some(PageId(15))); // schema_store
+        assert_eq!(snap.root_for_tree(7), Some(PageId(17))); // page_freelist
     }
 
     #[test]
-    #[should_panic(expected = "out of range")]
     fn root_for_tree_out_of_range() {
         let snap = Snapshot::from(&test_superblock());
-        snap.root_for_tree(8);
+        assert_eq!(snap.root_for_tree(8), None);
+        assert_eq!(snap.root_for_tree(usize::MAX), None);
     }
 }

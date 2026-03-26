@@ -92,10 +92,15 @@
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
+#[cfg(feature = "alloc")]
 pub mod types;
+#[cfg(feature = "alloc")]
 pub mod schema;
+#[cfg(feature = "alloc")]
 pub mod constraint;
+#[cfg(feature = "alloc")]
 pub mod inference;
+#[cfg(feature = "alloc")]
 pub mod error;
 pub mod backend;
 
@@ -111,19 +116,31 @@ pub mod storage;
 #[cfg(feature = "std")]
 pub mod db;
 
+// Re-export database facade types for convenience.
+#[cfg(feature = "std")]
+pub use db::{
+    Database, DatabaseConfig, EdgeBuilder, MissingExtensions, NodeBuilder, ReadTransaction,
+    StorageMode, TypeDefinitionBuilder, WriteTransaction,
+};
+
 // Re-export primary types for convenience.
+#[cfg(feature = "alloc")]
 pub use types::{
     Edge, EdgeId, Node, NodeId, PropertyDeclaration, PropertyKeyId, PropertyMap, TypeDefinition,
     TypeId, TypeKind, Value, ValueTypeDescriptor,
 };
+#[cfg(feature = "alloc")]
 pub use schema::{GraphView, PropertyKeyRegistryView, TypeRegistryView};
+#[cfg(feature = "alloc")]
 pub use constraint::{
     ChangeSet, ConstraintValidator, ConstraintViolation, EdgeChange, NodeChange, ViolationSubject,
 };
+#[cfg(feature = "alloc")]
 pub use inference::{
     InferenceMode, InferenceResult, InferenceRule, InferredEntity, InferredFact,
     MaterializedMapping, ProvenanceRecord,
 };
+#[cfg(feature = "alloc")]
 pub use error::{Error, InferenceError, NotFoundError, SchemaError, StorageError, TransactionError};
 pub use backend::{Durability, ReadAt, StorageBackend, StorageErrorKind, StorageErrorType, WriteAt};
 #[cfg(feature = "alloc")]
@@ -136,12 +153,17 @@ mod compile_tests {
     use super::*;
 
     // Verify Send + Sync on Box<dyn ConstraintValidator>
+    #[cfg(feature = "alloc")]
     fn _assert_validator_send_sync(_: Box<dyn ConstraintValidator>) {}
     // Verify Send + Sync on Box<dyn InferenceRule>
+    #[cfg(feature = "alloc")]
     fn _assert_rule_send_sync(_: Box<dyn InferenceRule>) {}
     // Verify all trait objects are object-safe
+    #[cfg(feature = "alloc")]
     fn _assert_graph_view(_: &dyn GraphView) {}
+    #[cfg(feature = "alloc")]
     fn _assert_type_registry_view(_: &dyn TypeRegistryView) {}
+    #[cfg(feature = "alloc")]
     fn _assert_property_key_registry_view(_: &dyn PropertyKeyRegistryView) {}
 
     // StorageBackend is object-safe

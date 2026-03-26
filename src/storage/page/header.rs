@@ -87,12 +87,25 @@ impl CommonPageHeader {
             source: None,
         })?;
 
+        let page_id_bytes: [u8; 8] = buf[0..8].try_into().map_err(|_| StorageError {
+            message: "page header: invalid page_id field length".into(),
+            source: None,
+        })?;
+        let txn_id_bytes: [u8; 8] = buf[12..20].try_into().map_err(|_| StorageError {
+            message: "page header: invalid txn_id field length".into(),
+            source: None,
+        })?;
+        let checksum_bytes: [u8; 4] = buf[20..24].try_into().map_err(|_| StorageError {
+            message: "page header: invalid checksum field length".into(),
+            source: None,
+        })?;
+
         Ok(Self {
-            page_id: PageId(u64::from_le_bytes(buf[0..8].try_into().unwrap())),
+            page_id: PageId(u64::from_le_bytes(page_id_bytes)),
             page_type,
             flags: buf[9],
-            txn_id: u64::from_le_bytes(buf[12..20].try_into().unwrap()),
-            checksum: u32::from_le_bytes(buf[20..24].try_into().unwrap()),
+            txn_id: u64::from_le_bytes(txn_id_bytes),
+            checksum: u32::from_le_bytes(checksum_bytes),
         })
     }
 
@@ -130,7 +143,11 @@ impl CommonPageHeader {
                 source: None,
             });
         }
-        let stored = u32::from_le_bytes(page_data[20..24].try_into().unwrap());
+        let stored_bytes: [u8; 4] = page_data[20..24].try_into().map_err(|_| StorageError {
+            message: "page header: invalid checksum field length".into(),
+            source: None,
+        })?;
+        let stored = u32::from_le_bytes(stored_bytes);
         let computed = Self::compute_checksum(page_data);
         if stored != computed {
             return Err(StorageError {
