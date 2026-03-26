@@ -10,7 +10,10 @@ use std::sync::{Arc, MutexGuard};
 
 use crate::constraint::{ChangeSet, ConstraintViolation};
 use crate::error::{Error, InferenceError, NotFoundError};
-use crate::inference::{InferenceMode, InferenceResult, MaterializedMapping, ProvenanceRecord};
+use crate::inference::{
+    InferenceMode, InferenceResult, InferredEntity, InferredFact, MaterializedMapping,
+    ProvenanceRecord,
+};
 use crate::schema::{PropertyKeyRegistryView, TypeRegistryView};
 use crate::storage::btree::cow::CowResult;
 use crate::storage::page::PageId;
@@ -22,6 +25,7 @@ use crate::types::{
 
 use super::database::DatabaseInner;
 use super::graph_view::{OverlayGraphView, SnapshotReader};
+use super::inference_engine::ProvenanceRegistry;
 use super::read_txn::ReadTransaction;
 use super::schema_cache::SchemaCache;
 use super::write_buffer::{SchemaChange, WriteBuffer};
@@ -43,6 +47,14 @@ pub struct WriteTransaction<'db> {
     pub(crate) schema_cache: SchemaCache,
     _write_guard: MutexGuard<'db, ()>,
     finished: bool,
+    /// Whether the write buffer has been mutated (used for cache bypass).
+    dirty: bool,
+    /// Materialized mapping from the most recent `run_inference` call.
+    last_materialization: Option<MaterializedMapping>,
+    /// Transaction-local provenance records from materialization.
+    pending_provenance: Vec<(InferredEntity, ProvenanceRecord)>,
+    /// Entities whose provenance was removed during cleanup (for commit).
+    provenance_removals: Vec<InferredEntity>,
     _not_send: PhantomData<*const ()>,
 }
 
@@ -61,6 +73,10 @@ impl<'db> WriteTransaction<'db> {
             schema_cache,
             _write_guard: write_guard,
             finished: false,
+            dirty: false,
+            last_materialization: None,
+            pending_provenance: Vec::new(),
+            provenance_removals: Vec::new(),
             _not_send: PhantomData,
         }
     }
@@ -475,6 +491,7 @@ impl<'db> WriteTransaction<'db> {
         node.type_labels.sort();
         node.type_labels.dedup();
         self.buffer.insert_node(node);
+        self.dirty = true;
         Ok(id)
     }
 
@@ -491,6 +508,7 @@ impl<'db> WriteTransaction<'db> {
         updated.type_labels.sort();
         updated.type_labels.dedup();
         self.buffer.update_node(current, updated);
+        self.dirty = true;
         Ok(())
     }
 
@@ -515,6 +533,7 @@ impl<'db> WriteTransaction<'db> {
         }
 
         self.buffer.delete_node(node);
+        self.dirty = true;
         Ok(())
     }
 
@@ -544,6 +563,7 @@ impl<'db> WriteTransaction<'db> {
         }
 
         self.buffer.insert_edge(edge);
+        self.dirty = true;
         Ok(id)
     }
 
@@ -563,6 +583,7 @@ impl<'db> WriteTransaction<'db> {
         updated.type_labels.sort();
         updated.type_labels.dedup();
         self.buffer.update_edge(current, updated);
+        self.dirty = true;
         Ok(())
     }
 
@@ -576,6 +597,7 @@ impl<'db> WriteTransaction<'db> {
             .get_edge(id)?
             .ok_or(Error::NotFound(NotFoundError::Edge(id)))?;
         self.buffer.delete_edge(edge);
+        self.dirty = true;
         Ok(())
     }
 
@@ -600,6 +622,7 @@ impl<'db> WriteTransaction<'db> {
         let before = node.clone();
         node.properties.insert(key, value);
         self.buffer.update_node(before, node);
+        self.dirty = true;
         Ok(())
     }
 
@@ -620,6 +643,7 @@ impl<'db> WriteTransaction<'db> {
         let removed = node.properties.remove(&key);
         if removed.is_some() {
             self.buffer.update_node(before, node);
+            self.dirty = true;
         }
         Ok(removed)
     }
@@ -641,6 +665,7 @@ impl<'db> WriteTransaction<'db> {
         let before = edge.clone();
         edge.properties.insert(key, value);
         self.buffer.update_edge(before, edge);
+        self.dirty = true;
         Ok(())
     }
 
@@ -661,6 +686,7 @@ impl<'db> WriteTransaction<'db> {
         let removed = edge.properties.remove(&key);
         if removed.is_some() {
             self.buffer.update_edge(before, edge);
+            self.dirty = true;
         }
         Ok(removed)
     }
@@ -683,6 +709,7 @@ impl<'db> WriteTransaction<'db> {
             node.type_labels.push(type_id);
             node.type_labels.sort();
             self.buffer.update_node(before, node);
+            self.dirty = true;
         }
         Ok(())
     }
@@ -700,6 +727,7 @@ impl<'db> WriteTransaction<'db> {
             let before = node.clone();
             node.type_labels.remove(pos);
             self.buffer.update_node(before, node);
+            self.dirty = true;
             Ok(true)
         } else {
             Ok(false)
@@ -720,6 +748,7 @@ impl<'db> WriteTransaction<'db> {
             edge.type_labels.push(type_id);
             edge.type_labels.sort();
             self.buffer.update_edge(before, edge);
+            self.dirty = true;
         }
         Ok(())
     }
@@ -737,6 +766,7 @@ impl<'db> WriteTransaction<'db> {
             let before = edge.clone();
             edge.type_labels.remove(pos);
             self.buffer.update_edge(before, edge);
+            self.dirty = true;
             Ok(true)
         } else {
             Ok(false)
@@ -909,6 +939,31 @@ impl<'db> WriteTransaction<'db> {
                     }
                 }
             }
+        }
+
+        // Persist provenance changes (removals then inserts, prefix 0x06).
+        for entity in &self.provenance_removals {
+            let (key, _) = ProvenanceRegistry::encode_entry(
+                entity,
+                // Dummy record for key encoding only.
+                &ProvenanceRecord {
+                    rule_name: String::new(),
+                    materialized_at: 0,
+                },
+            );
+            if let Some(cow) = engine.delete(roots.schema_store, &key, txn_id)? {
+                self.apply_cow(
+                    &mut roots.schema_store,
+                    &cow,
+                    txn_id,
+                    &mut all_freed,
+                );
+            }
+        }
+        for (entity, record) in &self.pending_provenance {
+            let (key, value) = ProvenanceRegistry::encode_entry(entity, record);
+            let cow = engine.insert(roots.schema_store, &key, &value, txn_id)?;
+            self.apply_cow(&mut roots.schema_store, &cow, txn_id, &mut all_freed);
         }
 
         // Persist ID counters
@@ -1222,91 +1277,497 @@ impl<'db> WriteTransaction<'db> {
     }
 
     // ------------------------------------------------------------------
-    // Inference stubs (Task 26)
+    // Inference dispatch
     // ------------------------------------------------------------------
 
-    /// Runs a named inference rule.
+    /// Runs a named inference rule with the given mode.
     ///
-    /// **Stub:** Returns `Error::Inference(RuleNotFound)` until Task 26.
+    /// In `Ephemeral` mode, returns inferred facts without modifying the graph.
+    /// In `Materialized` mode, writes inferred facts to the write buffer,
+    /// records provenance, and makes the `MaterializedMapping` available via
+    /// [`last_materialization_mapping`](Self::last_materialization_mapping).
     ///
     /// # Errors
     ///
-    /// Always returns an error.
+    /// Returns `Error::Inference(RuleNotFound)` if the rule is not registered.
+    /// Returns `Error::Inference(InvalidFact)` if a materialized fact is invalid.
     pub fn run_inference(
         &mut self,
         rule_name: &str,
-        _mode: InferenceMode,
+        mode: InferenceMode,
     ) -> Result<InferenceResult, Error> {
-        Err(Error::Inference(InferenceError::RuleNotFound(
-            rule_name.to_string(),
-        )))
+        // Reset last materialization mapping.
+        self.last_materialization = None;
+
+        let generation = self.snapshot.transaction_id;
+        let result = {
+            let mut engine = self.inner.inference_engine.lock().unwrap();
+
+            // Check that the rule exists.
+            if engine.get_rule(rule_name).is_none() {
+                return Err(Error::Inference(InferenceError::RuleNotFound(
+                    rule_name.to_string(),
+                )));
+            }
+
+            // Cache check: skip if dirty.
+            if !self.dirty {
+                if let Some(cached) = engine.cache_get(rule_name, generation) {
+                    if mode == InferenceMode::Ephemeral {
+                        return Ok(cached);
+                    }
+                    // For materialized mode, use cached result but continue to materialization.
+                    cached
+                } else {
+                    // Cache miss — invoke the rule.
+                    let reader = BaseSnapshotReader { txn: self };
+                    let view =
+                        OverlayGraphView::build(&reader, &self.buffer, &self.schema_cache);
+                    let rule = engine.get_rule(rule_name).unwrap();
+                    let result = rule.infer(&view, &self.schema_cache, &self.schema_cache);
+                    engine.cache_insert(rule_name.to_string(), generation, result.clone());
+                    result
+                }
+            } else {
+                // Dirty — always invoke the rule, never cache.
+                let reader = BaseSnapshotReader { txn: self };
+                let view =
+                    OverlayGraphView::build(&reader, &self.buffer, &self.schema_cache);
+                let rule = engine.get_rule(rule_name).unwrap();
+                rule.infer(&view, &self.schema_cache, &self.schema_cache)
+            }
+        };
+
+        if mode == InferenceMode::Ephemeral {
+            return Ok(result);
+        }
+
+        // --- Materialized mode ---
+        self.materialize_facts(rule_name, &result)?;
+        Ok(result)
     }
 
-    /// Runs all registered inference rules.
+    /// Runs all registered inference rules sequentially in registration order.
     ///
-    /// **Stub:** Returns an empty vector until Task 26.
+    /// In `Materialized` mode, each rule's output is written to the write buffer
+    /// before the next rule runs, enabling rule chaining.
     ///
     /// # Errors
     ///
-    /// Returns an error on failure.
+    /// Returns an error if any rule fails.
     pub fn run_all_inference(
         &mut self,
-        _mode: InferenceMode,
+        mode: InferenceMode,
     ) -> Result<Vec<InferenceResult>, Error> {
-        Ok(Vec::new())
+        let rule_names: Vec<String> = {
+            let engine = self.inner.inference_engine.lock().unwrap();
+            engine.rule_names()
+        };
+        let mut results = Vec::with_capacity(rule_names.len());
+        for name in &rule_names {
+            results.push(self.run_inference(name, mode)?);
+        }
+        Ok(results)
     }
 
-    /// Returns the materialized mapping from the last inference run.
-    ///
-    /// **Stub:** Returns `None` until Task 26.
+    /// Returns the materialized mapping from the most recent `run_inference`
+    /// call, or `None` if no materialized run has occurred.
     pub fn last_materialization_mapping(&self) -> Option<&MaterializedMapping> {
-        None
+        self.last_materialization.as_ref()
+    }
+
+    /// Materializes inferred facts: validates, cleans up old facts, inserts
+    /// new facts, records provenance, and builds the `MaterializedMapping`.
+    fn materialize_facts(
+        &mut self,
+        rule_name: &str,
+        result: &InferenceResult,
+    ) -> Result<(), Error> {
+        let txn_id = self.snapshot.transaction_id + 1;
+
+        // Step 1: Validate all facts before making any changes.
+        self.validate_inferred_facts(rule_name, &result.facts)?;
+
+        // Step 2: Cleanup old materialized facts from this rule.
+        let old_entities = {
+            let mut engine = self.inner.inference_engine.lock().unwrap();
+            engine.provenance_mut().remove_by_rule(rule_name)
+        };
+        // Also remove from pending provenance.
+        self.pending_provenance
+            .retain(|(e, _)| !old_entities.contains(e));
+        // Track removals for commit-time persistence.
+        self.provenance_removals.extend(old_entities.iter().cloned());
+
+        // Delete old entities from the write buffer (in reverse order to handle edges before nodes).
+        for entity in &old_entities {
+            match entity {
+                InferredEntity::Node(id) => {
+                    // Cascade delete (ignore errors if already deleted).
+                    let _ = self.delete_node(*id);
+                }
+                InferredEntity::Edge(id) => {
+                    let _ = self.delete_edge(*id);
+                }
+                InferredEntity::NodeProperty { node, key } => {
+                    let _ = self.remove_node_property(*node, *key);
+                }
+                InferredEntity::EdgeProperty { edge, key } => {
+                    let _ = self.remove_edge_property(*edge, *key);
+                }
+                InferredEntity::NodeType { node, type_id } => {
+                    let _ = self.remove_node_type(*node, *type_id);
+                }
+                InferredEntity::EdgeType { edge, type_id } => {
+                    let _ = self.remove_edge_type(*edge, *type_id);
+                }
+            }
+        }
+
+        // Step 3: Insert new facts and build MaterializedMapping.
+        let mut mapping = MaterializedMapping {
+            new_node_ids: Vec::new(),
+            new_edge_ids: Vec::new(),
+        };
+        let mut new_provenance = Vec::new();
+
+        for (i, fact) in result.facts.iter().enumerate() {
+            match fact {
+                InferredFact::NewNode {
+                    type_labels,
+                    properties,
+                    is_anonymous,
+                } => {
+                    let node = Node {
+                        id: NodeId(0), // will be assigned
+                        type_labels: type_labels.clone(),
+                        properties: properties.clone(),
+                        is_anonymous: *is_anonymous,
+                    };
+                    let id = self.insert_node(node)?;
+                    mapping.new_node_ids.push((i, id));
+                    new_provenance.push((
+                        InferredEntity::Node(id),
+                        ProvenanceRecord {
+                            rule_name: rule_name.to_string(),
+                            materialized_at: txn_id,
+                        },
+                    ));
+                }
+                InferredFact::NewEdge {
+                    type_labels,
+                    source,
+                    target,
+                    properties,
+                } => {
+                    let edge = Edge {
+                        id: EdgeId(0), // will be assigned
+                        type_labels: type_labels.clone(),
+                        source: *source,
+                        target: *target,
+                        properties: properties.clone(),
+                    };
+                    let id = self.insert_edge(edge)?;
+                    mapping.new_edge_ids.push((i, id));
+                    new_provenance.push((
+                        InferredEntity::Edge(id),
+                        ProvenanceRecord {
+                            rule_name: rule_name.to_string(),
+                            materialized_at: txn_id,
+                        },
+                    ));
+                }
+                InferredFact::NodePropertyUpdate { node, key, value } => {
+                    self.set_node_property(*node, *key, value.clone())?;
+                    new_provenance.push((
+                        InferredEntity::NodeProperty {
+                            node: *node,
+                            key: *key,
+                        },
+                        ProvenanceRecord {
+                            rule_name: rule_name.to_string(),
+                            materialized_at: txn_id,
+                        },
+                    ));
+                }
+                InferredFact::EdgePropertyUpdate { edge, key, value } => {
+                    self.set_edge_property(*edge, *key, value.clone())?;
+                    new_provenance.push((
+                        InferredEntity::EdgeProperty {
+                            edge: *edge,
+                            key: *key,
+                        },
+                        ProvenanceRecord {
+                            rule_name: rule_name.to_string(),
+                            materialized_at: txn_id,
+                        },
+                    ));
+                }
+                InferredFact::NodeTypeAssignment { node, type_id } => {
+                    self.add_node_type(*node, *type_id)?;
+                    new_provenance.push((
+                        InferredEntity::NodeType {
+                            node: *node,
+                            type_id: *type_id,
+                        },
+                        ProvenanceRecord {
+                            rule_name: rule_name.to_string(),
+                            materialized_at: txn_id,
+                        },
+                    ));
+                }
+                InferredFact::EdgeTypeAssignment { edge, type_id } => {
+                    self.add_edge_type(*edge, *type_id)?;
+                    new_provenance.push((
+                        InferredEntity::EdgeType {
+                            edge: *edge,
+                            type_id: *type_id,
+                        },
+                        ProvenanceRecord {
+                            rule_name: rule_name.to_string(),
+                            materialized_at: txn_id,
+                        },
+                    ));
+                }
+            }
+        }
+
+        // Step 4: Record provenance.
+        {
+            let mut engine = self.inner.inference_engine.lock().unwrap();
+            for (entity, record) in &new_provenance {
+                engine.provenance_mut().record(
+                    entity.clone(),
+                    &record.rule_name,
+                    record.materialized_at,
+                );
+            }
+        }
+        self.pending_provenance.extend(new_provenance);
+
+        // Step 5: Store mapping and mark dirty.
+        self.last_materialization = Some(mapping);
+        self.dirty = true;
+
+        Ok(())
+    }
+
+    /// Validates each inferred fact before materialization.
+    ///
+    /// Checks that referenced types are registered, referenced nodes/edges
+    /// exist, and property keys are registered. Returns an error on the first
+    /// invalid fact.
+    fn validate_inferred_facts(
+        &self,
+        rule_name: &str,
+        facts: &[InferredFact],
+    ) -> Result<(), Error> {
+        use crate::types::TypeKind;
+
+        for fact in facts {
+            match fact {
+                InferredFact::NewNode { type_labels, .. } => {
+                    for tid in type_labels {
+                        if let Some(td) = self.schema_cache.get_type(*tid) {
+                            if td.kind != TypeKind::Node {
+                                return Err(Error::Inference(InferenceError::InvalidFact {
+                                    rule_name: rule_name.to_string(),
+                                    message: format!(
+                                        "type {} is not a node type",
+                                        tid.0
+                                    ),
+                                }));
+                            }
+                        } else {
+                            return Err(Error::Inference(InferenceError::InvalidFact {
+                                rule_name: rule_name.to_string(),
+                                message: format!("type {} is not registered", tid.0),
+                            }));
+                        }
+                    }
+                }
+                InferredFact::NewEdge {
+                    type_labels,
+                    source,
+                    target,
+                    ..
+                } => {
+                    if self.get_node(*source)?.is_none() {
+                        return Err(Error::Inference(InferenceError::InvalidFact {
+                            rule_name: rule_name.to_string(),
+                            message: format!("source node {} does not exist", source.0),
+                        }));
+                    }
+                    if self.get_node(*target)?.is_none() {
+                        return Err(Error::Inference(InferenceError::InvalidFact {
+                            rule_name: rule_name.to_string(),
+                            message: format!("target node {} does not exist", target.0),
+                        }));
+                    }
+                    for tid in type_labels {
+                        if let Some(td) = self.schema_cache.get_type(*tid) {
+                            if td.kind != TypeKind::Edge {
+                                return Err(Error::Inference(InferenceError::InvalidFact {
+                                    rule_name: rule_name.to_string(),
+                                    message: format!(
+                                        "type {} is not an edge type",
+                                        tid.0
+                                    ),
+                                }));
+                            }
+                        } else {
+                            return Err(Error::Inference(InferenceError::InvalidFact {
+                                rule_name: rule_name.to_string(),
+                                message: format!("type {} is not registered", tid.0),
+                            }));
+                        }
+                    }
+                }
+                InferredFact::NodePropertyUpdate { node, key, .. } => {
+                    if self.get_node(*node)?.is_none() {
+                        return Err(Error::Inference(InferenceError::InvalidFact {
+                            rule_name: rule_name.to_string(),
+                            message: format!("node {} does not exist", node.0),
+                        }));
+                    }
+                    if self.schema_cache.get_key_name(*key).is_none() {
+                        return Err(Error::Inference(InferenceError::InvalidFact {
+                            rule_name: rule_name.to_string(),
+                            message: format!("property key {} is not registered", key.0),
+                        }));
+                    }
+                }
+                InferredFact::EdgePropertyUpdate { edge, key, .. } => {
+                    if self.get_edge(*edge)?.is_none() {
+                        return Err(Error::Inference(InferenceError::InvalidFact {
+                            rule_name: rule_name.to_string(),
+                            message: format!("edge {} does not exist", edge.0),
+                        }));
+                    }
+                    if self.schema_cache.get_key_name(*key).is_none() {
+                        return Err(Error::Inference(InferenceError::InvalidFact {
+                            rule_name: rule_name.to_string(),
+                            message: format!("property key {} is not registered", key.0),
+                        }));
+                    }
+                }
+                InferredFact::NodeTypeAssignment { node, type_id } => {
+                    if self.get_node(*node)?.is_none() {
+                        return Err(Error::Inference(InferenceError::InvalidFact {
+                            rule_name: rule_name.to_string(),
+                            message: format!("node {} does not exist", node.0),
+                        }));
+                    }
+                    if self.schema_cache.get_type(*type_id).is_none() {
+                        return Err(Error::Inference(InferenceError::InvalidFact {
+                            rule_name: rule_name.to_string(),
+                            message: format!("type {} is not registered", type_id.0),
+                        }));
+                    }
+                }
+                InferredFact::EdgeTypeAssignment { edge, type_id } => {
+                    if self.get_edge(*edge)?.is_none() {
+                        return Err(Error::Inference(InferenceError::InvalidFact {
+                            rule_name: rule_name.to_string(),
+                            message: format!("edge {} does not exist", edge.0),
+                        }));
+                    }
+                    if self.schema_cache.get_type(*type_id).is_none() {
+                        return Err(Error::Inference(InferenceError::InvalidFact {
+                            rule_name: rule_name.to_string(),
+                            message: format!("type {} is not registered", type_id.0),
+                        }));
+                    }
+                }
+            }
+        }
+        Ok(())
     }
 
     // ------------------------------------------------------------------
-    // Provenance stubs (Task 26)
+    // Provenance queries
     // ------------------------------------------------------------------
 
-    /// Returns whether a node was inferred. Stub: always `false`.
+    /// Returns whether a node was created by an inference rule.
+    ///
+    /// Checks both committed provenance and pending (uncommitted) provenance
+    /// from materializations in this transaction.
     ///
     /// # Errors
     ///
     /// Returns an error on storage failure.
-    pub fn is_inferred_node(&self, _id: NodeId) -> Result<bool, Error> {
-        Ok(false)
+    pub fn is_inferred_node(&self, id: NodeId) -> Result<bool, Error> {
+        let entity = InferredEntity::Node(id);
+        // Check pending provenance first.
+        if self.pending_provenance.iter().any(|(e, _)| *e == entity) {
+            return Ok(true);
+        }
+        // Check if removed in this transaction.
+        if self.provenance_removals.contains(&entity) {
+            return Ok(false);
+        }
+        let engine = self.inner.inference_engine.lock().unwrap();
+        Ok(engine.provenance().is_inferred(&entity))
     }
 
-    /// Returns whether an edge was inferred. Stub: always `false`.
+    /// Returns whether an edge was created by an inference rule.
     ///
     /// # Errors
     ///
     /// Returns an error on storage failure.
-    pub fn is_inferred_edge(&self, _id: EdgeId) -> Result<bool, Error> {
-        Ok(false)
+    pub fn is_inferred_edge(&self, id: EdgeId) -> Result<bool, Error> {
+        let entity = InferredEntity::Edge(id);
+        if self.pending_provenance.iter().any(|(e, _)| *e == entity) {
+            return Ok(true);
+        }
+        if self.provenance_removals.contains(&entity) {
+            return Ok(false);
+        }
+        let engine = self.inner.inference_engine.lock().unwrap();
+        Ok(engine.provenance().is_inferred(&entity))
     }
 
-    /// Returns provenance for a node. Stub: always `None`.
+    /// Returns the provenance record for an inferred node, or `None`
+    /// if the node was user-asserted.
     ///
     /// # Errors
     ///
     /// Returns an error on storage failure.
     pub fn node_provenance(
         &self,
-        _id: NodeId,
+        id: NodeId,
     ) -> Result<Option<ProvenanceRecord>, Error> {
-        Ok(None)
+        let entity = InferredEntity::Node(id);
+        // Check pending provenance first.
+        if let Some((_, record)) = self.pending_provenance.iter().find(|(e, _)| *e == entity) {
+            return Ok(Some(record.clone()));
+        }
+        if self.provenance_removals.contains(&entity) {
+            return Ok(None);
+        }
+        let engine = self.inner.inference_engine.lock().unwrap();
+        Ok(engine.provenance().get(&entity).cloned())
     }
 
-    /// Returns provenance for an edge. Stub: always `None`.
+    /// Returns the provenance record for an inferred edge, or `None`
+    /// if the edge was user-asserted.
     ///
     /// # Errors
     ///
     /// Returns an error on storage failure.
     pub fn edge_provenance(
         &self,
-        _id: EdgeId,
+        id: EdgeId,
     ) -> Result<Option<ProvenanceRecord>, Error> {
-        Ok(None)
+        let entity = InferredEntity::Edge(id);
+        if let Some((_, record)) = self.pending_provenance.iter().find(|(e, _)| *e == entity) {
+            return Ok(Some(record.clone()));
+        }
+        if self.provenance_removals.contains(&entity) {
+            return Ok(None);
+        }
+        let engine = self.inner.inference_engine.lock().unwrap();
+        Ok(engine.provenance().get(&entity).cloned())
     }
 
     // ------------------------------------------------------------------

@@ -19,6 +19,7 @@ use crate::storage::{StorageEngine, StorageEngineConfig};
 use crate::types::{PropertyKeyId, TypeId};
 
 use super::config::{DatabaseConfig, StorageMode};
+use super::inference_engine::InferenceEngine;
 use super::read_txn::ReadTransaction;
 use super::schema_cache::SchemaCache;
 use super::write_txn::WriteTransaction;
@@ -61,8 +62,8 @@ pub(crate) struct DatabaseInner {
     pub schema_cache: RwLock<SchemaCache>,
     /// Registered constraint validators.
     pub constraint_registry: RwLock<Vec<Box<dyn ConstraintValidator>>>,
-    /// Registered inference rules (placeholder for Task 26).
-    pub inference_registry: RwLock<Vec<Box<dyn InferenceRule>>>,
+    /// Inference engine: rule registry, result cache, and provenance tracking.
+    pub inference_engine: Mutex<InferenceEngine>,
     /// Extension names persisted in the database.
     pub persisted_extension_names: RwLock<PersistedExtensionNames>,
     /// Configuration.
@@ -161,13 +162,23 @@ impl Database {
             &mut persisted_names,
         )?;
 
+        // Create inference engine and load persisted provenance records.
+        let mut inference_engine = InferenceEngine::new(config.inference_cache_size);
+        if !snapshot.roots.schema_store.is_null() {
+            let provenance_entries =
+                Self::collect_range(&mut engine, snapshot.roots.schema_store, &[0x06], &[0x07])?;
+            inference_engine
+                .provenance_mut()
+                .load_from_entries(provenance_entries.into_iter());
+        }
+
         let inner = DatabaseInner {
             storage: Mutex::new(engine),
             write_mutex: Mutex::new(()),
             current_snapshot: RwLock::new(Arc::new(snapshot)),
             schema_cache: RwLock::new(schema_cache),
             constraint_registry: RwLock::new(Vec::new()),
-            inference_registry: RwLock::new(Vec::new()),
+            inference_engine: Mutex::new(inference_engine),
             persisted_extension_names: RwLock::new(persisted_names),
             config,
         };
@@ -348,7 +359,8 @@ impl Database {
 
     /// Registers an inference rule.
     ///
-    /// If a rule with the same name is already registered, it is replaced.
+    /// If a rule with the same name is already registered, it is replaced
+    /// (preserving its position in the registration order).
     ///
     /// # Errors
     ///
@@ -357,10 +369,8 @@ impl Database {
         &self,
         rule: Box<dyn InferenceRule>,
     ) -> Result<(), Error> {
-        let name = rule.name().to_string();
-        let mut registry = self.inner.inference_registry.write().unwrap();
-        registry.retain(|r| r.name() != name);
-        registry.push(rule);
+        let mut engine = self.inner.inference_engine.lock().unwrap();
+        engine.register_rule(rule);
         Ok(())
     }
 
@@ -372,10 +382,8 @@ impl Database {
     ///
     /// Returns an error if the internal state is poisoned.
     pub fn unregister_inference_rule(&self, name: &str) -> Result<bool, Error> {
-        let mut registry = self.inner.inference_registry.write().unwrap();
-        let before = registry.len();
-        registry.retain(|r| r.name() != name);
-        Ok(registry.len() < before)
+        let mut engine = self.inner.inference_engine.lock().unwrap();
+        Ok(engine.unregister_rule(name))
     }
 
     /// Returns the names of all registered constraint validators.
@@ -384,10 +392,10 @@ impl Database {
         registry.iter().map(|v| v.name().to_string()).collect()
     }
 
-    /// Returns the names of all registered inference rules.
+    /// Returns the names of all registered inference rules in registration order.
     pub fn inference_rule_names(&self) -> Vec<String> {
-        let registry = self.inner.inference_registry.read().unwrap();
-        registry.iter().map(|r| r.name().to_string()).collect()
+        let engine = self.inner.inference_engine.lock().unwrap();
+        engine.rule_names()
     }
 
     /// Returns extensions that are persisted in the database but not
@@ -395,12 +403,12 @@ impl Database {
     pub fn missing_extensions(&self) -> MissingExtensions {
         let persisted = self.inner.persisted_extension_names.read().unwrap();
         let constraints = self.inner.constraint_registry.read().unwrap();
-        let rules = self.inner.inference_registry.read().unwrap();
+        let engine = self.inner.inference_engine.lock().unwrap();
 
         let registered_constraints: std::collections::HashSet<String> =
             constraints.iter().map(|v| v.name().to_string()).collect();
         let registered_rules: std::collections::HashSet<String> =
-            rules.iter().map(|r| r.name().to_string()).collect();
+            engine.rule_names().into_iter().collect();
 
         MissingExtensions {
             constraint_validators: persisted

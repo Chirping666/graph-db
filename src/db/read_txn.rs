@@ -8,7 +8,7 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 
 use crate::error::{Error, InferenceError};
-use crate::inference::{InferenceResult, ProvenanceRecord};
+use crate::inference::{InferenceResult, InferredEntity, ProvenanceRecord};
 use crate::schema::{PropertyKeyRegistryView, TypeRegistryView};
 use crate::storage::page::PageId;
 use crate::storage::serialization;
@@ -16,7 +16,9 @@ use crate::storage::snapshot::Snapshot;
 use crate::types::{Edge, EdgeId, Node, NodeId, PropertyKeyId, TypeId, Value};
 
 use super::database::DatabaseInner;
+use super::graph_view::{OverlayGraphView, SnapshotReader};
 use super::schema_cache::SchemaCache;
+use super::write_buffer::WriteBuffer;
 
 /// A read-only transaction providing snapshot-isolated reads.
 ///
@@ -410,90 +412,174 @@ impl<'db> ReadTransaction<'db> {
     }
 
     // ------------------------------------------------------------------
-    // Inference stubs (Task 26)
+    // Inference dispatch
     // ------------------------------------------------------------------
 
     /// Runs a named inference rule in ephemeral mode.
     ///
-    /// **Stub:** Returns `Error::Inference(RuleNotFound)` until Task 26.
+    /// Checks the cache first; on miss, constructs a `GraphView` from the
+    /// snapshot and invokes the rule. Results are cached for future calls
+    /// with the same `(rule_name, generation)`.
     ///
     /// # Errors
     ///
-    /// Always returns `Error::Inference(InferenceError::RuleNotFound)`.
+    /// Returns `Error::Inference(RuleNotFound)` if the rule is not registered.
     pub fn run_inference(&self, rule_name: &str) -> Result<InferenceResult, Error> {
-        Err(Error::Inference(InferenceError::RuleNotFound(
-            rule_name.to_string(),
-        )))
+        let mut engine = self.inner.inference_engine.lock().unwrap();
+
+        // Check that the rule exists.
+        if engine.get_rule(rule_name).is_none() {
+            return Err(Error::Inference(InferenceError::RuleNotFound(
+                rule_name.to_string(),
+            )));
+        }
+
+        let generation = self.snapshot.transaction_id;
+
+        // Cache check.
+        if let Some(cached) = engine.cache_get(rule_name, generation) {
+            return Ok(cached);
+        }
+
+        // Build GraphView from snapshot (no WriteBuffer overlay for reads).
+        let reader = ReadTxnSnapshotReader { txn: self };
+        let empty_buf = WriteBuffer::new();
+        let view = OverlayGraphView::build(&reader, &empty_buf, &self.schema_cache);
+
+        // Invoke the rule.
+        let rule = engine.get_rule(rule_name).unwrap();
+        let result = rule.infer(&view, &self.schema_cache, &self.schema_cache);
+
+        // Cache the result.
+        engine.cache_insert(rule_name.to_string(), generation, result.clone());
+
+        Ok(result)
     }
 
-    /// Runs all registered inference rules.
+    /// Runs all registered inference rules in registration order (ephemeral).
     ///
-    /// **Stub:** Returns an empty vector until Task 26.
+    /// Each rule receives the same snapshot-based `GraphView`. Results are
+    /// collected and returned in order.
     ///
     /// # Errors
     ///
-    /// Returns an error on failure.
+    /// Returns an error if any rule invocation fails.
     pub fn run_all_inference(&self) -> Result<Vec<InferenceResult>, Error> {
-        Ok(Vec::new())
+        let rule_names: Vec<String> = {
+            let engine = self.inner.inference_engine.lock().unwrap();
+            engine.rule_names()
+        };
+        let mut results = Vec::with_capacity(rule_names.len());
+        for name in &rule_names {
+            results.push(self.run_inference(name)?);
+        }
+        Ok(results)
     }
 
     // ------------------------------------------------------------------
-    // Provenance stubs (Task 26)
+    // Provenance queries
     // ------------------------------------------------------------------
 
-    /// Returns whether a node was inferred.
-    ///
-    /// **Stub:** Always returns `false` until Task 26.
+    /// Returns whether a node was created by an inference rule.
     ///
     /// # Errors
     ///
     /// Returns an error on storage failure.
-    pub fn is_inferred_node(&self, _id: NodeId) -> Result<bool, Error> {
-        Ok(false)
+    pub fn is_inferred_node(&self, id: NodeId) -> Result<bool, Error> {
+        let engine = self.inner.inference_engine.lock().unwrap();
+        Ok(engine.provenance().is_inferred(&InferredEntity::Node(id)))
     }
 
-    /// Returns whether an edge was inferred.
-    ///
-    /// **Stub:** Always returns `false` until Task 26.
+    /// Returns whether an edge was created by an inference rule.
     ///
     /// # Errors
     ///
     /// Returns an error on storage failure.
-    pub fn is_inferred_edge(&self, _id: EdgeId) -> Result<bool, Error> {
-        Ok(false)
+    pub fn is_inferred_edge(&self, id: EdgeId) -> Result<bool, Error> {
+        let engine = self.inner.inference_engine.lock().unwrap();
+        Ok(engine.provenance().is_inferred(&InferredEntity::Edge(id)))
     }
 
-    /// Returns the provenance record for a node.
-    ///
-    /// **Stub:** Always returns `None` until Task 26.
+    /// Returns the provenance record for an inferred node, or `None`
+    /// if the node was user-asserted.
     ///
     /// # Errors
     ///
     /// Returns an error on storage failure.
     pub fn node_provenance(
         &self,
-        _id: NodeId,
+        id: NodeId,
     ) -> Result<Option<ProvenanceRecord>, Error> {
-        Ok(None)
+        let engine = self.inner.inference_engine.lock().unwrap();
+        Ok(engine
+            .provenance()
+            .get(&InferredEntity::Node(id))
+            .cloned())
     }
 
-    /// Returns the provenance record for an edge.
-    ///
-    /// **Stub:** Always returns `None` until Task 26.
+    /// Returns the provenance record for an inferred edge, or `None`
+    /// if the edge was user-asserted.
     ///
     /// # Errors
     ///
     /// Returns an error on storage failure.
     pub fn edge_provenance(
         &self,
-        _id: EdgeId,
+        id: EdgeId,
     ) -> Result<Option<ProvenanceRecord>, Error> {
-        Ok(None)
+        let engine = self.inner.inference_engine.lock().unwrap();
+        Ok(engine
+            .provenance()
+            .get(&InferredEntity::Edge(id))
+            .cloned())
     }
 
     /// Explicitly finishes this read transaction, releasing the snapshot.
     pub fn finish(self) {
         // Consumed by value; snapshot Arc dropped automatically.
+    }
+}
+
+/// Implements [`SnapshotReader`] for a `ReadTransaction`, providing base
+/// snapshot access via the storage engine's B-tree reads.
+struct ReadTxnSnapshotReader<'a, 'db> {
+    txn: &'a ReadTransaction<'db>,
+}
+
+impl<'a, 'db> SnapshotReader for ReadTxnSnapshotReader<'a, 'db> {
+    fn get_node(&self, id: NodeId) -> Option<Node> {
+        self.txn.get_node(id).ok().flatten()
+    }
+
+    fn get_edge(&self, id: EdgeId) -> Option<Edge> {
+        self.txn.get_edge(id).ok().flatten()
+    }
+
+    fn outgoing_edges(&self, node: NodeId, edge_type: Option<TypeId>) -> Vec<Edge> {
+        self.txn.outgoing_edges(node, edge_type).unwrap_or_default()
+    }
+
+    fn incoming_edges(&self, node: NodeId, edge_type: Option<TypeId>) -> Vec<Edge> {
+        self.txn.incoming_edges(node, edge_type).unwrap_or_default()
+    }
+
+    fn all_nodes(&self) -> Vec<Node> {
+        self.txn.all_nodes().unwrap_or_default()
+    }
+
+    fn all_edges(&self) -> Vec<Edge> {
+        let start = [0u8; 8];
+        let entries = self
+            .txn
+            .storage_range_scan(self.txn.snapshot.roots.edge_store, &start, None)
+            .unwrap_or_default();
+        entries
+            .iter()
+            .filter_map(|(key, value)| {
+                let edge_id = serialization::decode_edge_key(key);
+                ReadTransaction::deserialize_edge(edge_id, value).ok()
+            })
+            .collect()
     }
 }
 

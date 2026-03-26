@@ -9,13 +9,14 @@
 //! translates high-level graph operations (insert node, traverse edges,
 //! query by type) into low-level B-tree operations. It enforces single-writer
 //! MVCC concurrency, dispatches constraint validators at commit time, and
-//! provides inference rule stubs for Task 26.
+//! provides pluggable inference rule dispatch with caching and provenance.
 
 pub mod builders;
 pub mod config;
 pub mod database;
 pub mod graph_reader;
 pub mod graph_view;
+pub mod inference_engine;
 pub mod read_txn;
 pub mod schema_cache;
 pub mod write_buffer;
