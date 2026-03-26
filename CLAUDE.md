@@ -27,6 +27,8 @@ All design documents, task directories, completion reports, and the previous `CL
 from the Tasks 1–29 implementation phase are preserved in `archive/`. They are reference
 material only — the current phase is governed entirely by this file and `030-workspace-redesign.md`.
 
+Three documents govern this phase: this file (CLAUDE.md) defines session behavior and rules, 030-workspace-redesign.md is the architectural source of truth, and checklist.md is the ordered migration plan with verification gates.
+
 ---
 
 ## Session Workflow
@@ -38,6 +40,8 @@ Every Claude Code session follows these steps in order. Do not skip steps.
 Read `030-workspace-redesign.md` — specifically the sections relevant to the current
 migration phase (see §14 Migration Plan for the five-phase breakdown). If the session
 targets a specific crate, focus on that crate's section (§5, §6, or §7).
+
+Then read checklist.md — the ordered migration steps with verification gates. Identify which step you are currently on before planning the session.
 
 ### 2. Review existing code
 
@@ -52,7 +56,7 @@ Understand what has already been moved and what remains.
 ### 3. Create a session plan and confirm with the user
 
 Before implementing, produce a brief plan:
-- Which migration phase (or sub-steps) you will tackle
+- Which checklist items you will tackle in this session (reference by number, e.g., "2.3 through 2.6")
 - Any ambiguities or questions
 - Any deviations from the design document you anticipate (with justification)
 
