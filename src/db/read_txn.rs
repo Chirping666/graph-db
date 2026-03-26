@@ -132,6 +132,22 @@ impl<'db> ReadTransaction<'db> {
     /// # Errors
     ///
     /// Returns an error on storage I/O failure.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use graph_db::db::{database::Database, config::DatabaseConfig, builders::*};
+    /// # use graph_db::types::Value;
+    /// # let db = Database::open(DatabaseConfig::in_memory()).unwrap();
+    /// # let mut wtx = db.write_txn().unwrap();
+    /// # let t = wtx.register_type(TypeDefinitionBuilder::node_type("N").build()).unwrap();
+    /// # let k = wtx.get_or_create_property_key("name").unwrap();
+    /// # let id = wtx.insert_node(NodeBuilder::new().type_label(t).property(k, Value::String("Alice".into())).build()).unwrap();
+    /// # wtx.commit().unwrap();
+    /// let rtx = db.read_txn().unwrap();
+    /// let node = rtx.get_node(id).unwrap().unwrap();
+    /// assert_eq!(node.properties.get(&k), Some(&Value::String("Alice".into())));
+    /// ```
     pub fn get_node(&self, id: NodeId) -> Result<Option<Node>, Error> {
         let key = serialization::encode_node_key(id);
         match self.storage_search(self.snapshot.roots.node_store, &key)? {
@@ -145,6 +161,24 @@ impl<'db> ReadTransaction<'db> {
     /// # Errors
     ///
     /// Returns an error on storage I/O failure.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use graph_db::db::{database::Database, config::DatabaseConfig, builders::*};
+    /// # let db = Database::open(DatabaseConfig::in_memory()).unwrap();
+    /// # let mut wtx = db.write_txn().unwrap();
+    /// # let nt = wtx.register_type(TypeDefinitionBuilder::node_type("N").build()).unwrap();
+    /// # let et = wtx.register_type(TypeDefinitionBuilder::edge_type("E").build()).unwrap();
+    /// # let a = wtx.insert_node(NodeBuilder::new().type_label(nt).build()).unwrap();
+    /// # let b = wtx.insert_node(NodeBuilder::new().type_label(nt).build()).unwrap();
+    /// # let eid = wtx.insert_edge(EdgeBuilder::new(a, b).type_label(et).build()).unwrap();
+    /// # wtx.commit().unwrap();
+    /// let rtx = db.read_txn().unwrap();
+    /// let edge = rtx.get_edge(eid).unwrap().unwrap();
+    /// assert_eq!(edge.source, a);
+    /// assert_eq!(edge.target, b);
+    /// ```
     pub fn get_edge(&self, id: EdgeId) -> Result<Option<Edge>, Error> {
         let key = serialization::encode_edge_key(id);
         match self.storage_search(self.snapshot.roots.edge_store, &key)? {
@@ -181,6 +215,24 @@ impl<'db> ReadTransaction<'db> {
     /// # Errors
     ///
     /// Returns an error on storage I/O failure.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use graph_db::db::{database::Database, config::DatabaseConfig, builders::*};
+    /// # let db = Database::open(DatabaseConfig::in_memory()).unwrap();
+    /// # let mut wtx = db.write_txn().unwrap();
+    /// # let nt = wtx.register_type(TypeDefinitionBuilder::node_type("N").build()).unwrap();
+    /// # let et = wtx.register_type(TypeDefinitionBuilder::edge_type("E").build()).unwrap();
+    /// # let a = wtx.insert_node(NodeBuilder::new().type_label(nt).build()).unwrap();
+    /// # let b = wtx.insert_node(NodeBuilder::new().type_label(nt).build()).unwrap();
+    /// # wtx.insert_edge(EdgeBuilder::new(a, b).type_label(et).build()).unwrap();
+    /// # wtx.commit().unwrap();
+    /// let rtx = db.read_txn().unwrap();
+    /// let edges = rtx.outgoing_edges(a, Some(et)).unwrap();
+    /// assert_eq!(edges.len(), 1);
+    /// assert_eq!(edges[0].target, b);
+    /// ```
     pub fn outgoing_edges(
         &self,
         node: NodeId,
@@ -263,6 +315,21 @@ impl<'db> ReadTransaction<'db> {
     /// # Errors
     ///
     /// Returns an error on storage I/O failure.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use graph_db::db::{database::Database, config::DatabaseConfig, builders::*};
+    /// # let db = Database::open(DatabaseConfig::in_memory()).unwrap();
+    /// # let mut wtx = db.write_txn().unwrap();
+    /// # let t = wtx.register_type(TypeDefinitionBuilder::node_type("Person").build()).unwrap();
+    /// # wtx.insert_node(NodeBuilder::new().type_label(t).build()).unwrap();
+    /// # wtx.insert_node(NodeBuilder::new().type_label(t).build()).unwrap();
+    /// # wtx.commit().unwrap();
+    /// let rtx = db.read_txn().unwrap();
+    /// let people = rtx.nodes_by_type(t, false).unwrap();
+    /// assert_eq!(people.len(), 2);
+    /// ```
     pub fn nodes_by_type(
         &self,
         type_id: TypeId,
@@ -356,6 +423,15 @@ impl<'db> ReadTransaction<'db> {
     /// # Errors
     ///
     /// Returns an error on storage I/O failure.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use graph_db::db::{database::Database, config::DatabaseConfig};
+    /// let db = Database::open(DatabaseConfig::in_memory()).unwrap();
+    /// let rtx = db.read_txn().unwrap();
+    /// assert_eq!(rtx.node_count().unwrap(), 0);
+    /// ```
     pub fn node_count(&self) -> Result<u64, Error> {
         let start = [0u8; 8];
         let entries =
@@ -418,11 +494,38 @@ impl<'db> ReadTransaction<'db> {
     // ------------------------------------------------------------------
 
     /// Returns a reference to the type registry view.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use graph_db::db::{database::Database, config::DatabaseConfig, builders::*};
+    /// # let db = Database::open(DatabaseConfig::in_memory()).unwrap();
+    /// # let mut wtx = db.write_txn().unwrap();
+    /// # let t = wtx.register_type(TypeDefinitionBuilder::node_type("Person").build()).unwrap();
+    /// # wtx.commit().unwrap();
+    /// let rtx = db.read_txn().unwrap();
+    /// let reg = rtx.type_registry();
+    /// let td = reg.get_type(t).unwrap();
+    /// assert_eq!(td.name, "Person");
+    /// ```
     pub fn type_registry(&self) -> &dyn TypeRegistryView {
         &self.schema_cache
     }
 
     /// Returns the property key ID for the given name, if registered.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use graph_db::db::{database::Database, config::DatabaseConfig};
+    /// # let db = Database::open(DatabaseConfig::in_memory()).unwrap();
+    /// # let mut wtx = db.write_txn().unwrap();
+    /// # let k = wtx.get_or_create_property_key("name").unwrap();
+    /// # wtx.commit().unwrap();
+    /// let rtx = db.read_txn().unwrap();
+    /// assert!(rtx.get_property_key("name").is_some());
+    /// assert!(rtx.get_property_key("nonexistent").is_none());
+    /// ```
     pub fn get_property_key(&self, name: &str) -> Option<PropertyKeyId> {
         self.schema_cache.get_key_id(name)
     }

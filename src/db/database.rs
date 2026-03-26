@@ -140,6 +140,15 @@ pub(crate) struct PersistedExtensionNames {
 
 /// Lists extensions that are persisted in the database but not currently
 /// registered in memory.
+///
+/// # Examples
+///
+/// ```
+/// # use graph_db::db::{database::Database, config::DatabaseConfig};
+/// let db = Database::open(DatabaseConfig::in_memory()).unwrap();
+/// let missing = db.missing_extensions();
+/// assert!(missing.is_empty());
+/// ```
 #[derive(Clone, Debug, Default)]
 pub struct MissingExtensions {
     /// Constraint validators persisted but not registered.
@@ -418,6 +427,15 @@ impl Database {
     /// # Errors
     ///
     /// Returns an error if the internal state is poisoned (panic in another thread).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use graph_db::db::{database::Database, config::DatabaseConfig};
+    /// let db = Database::open(DatabaseConfig::in_memory()).unwrap();
+    /// let rtx = db.read_txn().unwrap();
+    /// assert_eq!(rtx.node_count().unwrap(), 0);
+    /// ```
     pub fn read_txn(&self) -> Result<ReadTransaction<'_>, Error> {
         let snapshot = {
             let current = self.inner.current_snapshot.read().unwrap();
@@ -441,6 +459,17 @@ impl Database {
     /// # Errors
     ///
     /// Returns an error if the write lock is poisoned.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use graph_db::db::{database::Database, config::DatabaseConfig, builders::*};
+    /// let db = Database::open(DatabaseConfig::in_memory()).unwrap();
+    /// let mut wtx = db.write_txn().unwrap();
+    /// let t = wtx.register_type(TypeDefinitionBuilder::node_type("N").build()).unwrap();
+    /// wtx.insert_node(NodeBuilder::new().type_label(t).build()).unwrap();
+    /// wtx.commit().unwrap();
+    /// ```
     pub fn write_txn(&self) -> Result<WriteTransaction<'_>, Error> {
         let guard = self.inner.write_mutex.lock().unwrap();
         let snapshot = {
@@ -521,12 +550,28 @@ impl Database {
     }
 
     /// Returns the names of all registered constraint validators.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use graph_db::db::{database::Database, config::DatabaseConfig};
+    /// let db = Database::open(DatabaseConfig::in_memory()).unwrap();
+    /// assert!(db.constraint_names().is_empty());
+    /// ```
     pub fn constraint_names(&self) -> Vec<String> {
         let registry = self.inner.constraint_registry.read().unwrap();
         registry.iter().map(|v| v.name().to_string()).collect()
     }
 
     /// Returns the names of all registered inference rules in registration order.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use graph_db::db::{database::Database, config::DatabaseConfig};
+    /// let db = Database::open(DatabaseConfig::in_memory()).unwrap();
+    /// assert!(db.inference_rule_names().is_empty());
+    /// ```
     pub fn inference_rule_names(&self) -> Vec<String> {
         let engine = self.inner.inference_engine.lock().unwrap();
         engine.rule_names()

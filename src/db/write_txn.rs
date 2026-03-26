@@ -477,6 +477,19 @@ impl<'db> WriteTransaction<'db> {
     /// # Errors
     ///
     /// Returns an error if the type name is duplicate or supertypes are invalid.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use graph_db::db::{database::Database, config::DatabaseConfig, builders::*};
+    /// # let db = Database::open(DatabaseConfig::in_memory()).unwrap();
+    /// let mut wtx = db.write_txn().unwrap();
+    /// let person = wtx.register_type(
+    ///     TypeDefinitionBuilder::node_type("Person").build()
+    /// ).unwrap();
+    /// assert!(!person.is_null());
+    /// wtx.commit().unwrap();
+    /// ```
     pub fn register_type(&mut self, def: TypeDefinition) -> Result<TypeId, Error> {
         let type_id = self.schema_cache.register_type(def.clone())?;
         let mut registered = def;
@@ -516,6 +529,22 @@ impl<'db> WriteTransaction<'db> {
     /// # Errors
     ///
     /// Returns an error on internal failure.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use graph_db::db::{database::Database, config::DatabaseConfig, builders::*};
+    /// # use graph_db::types::Value;
+    /// # let db = Database::open(DatabaseConfig::in_memory()).unwrap();
+    /// let mut wtx = db.write_txn().unwrap();
+    /// let t = wtx.register_type(TypeDefinitionBuilder::node_type("N").build()).unwrap();
+    /// let k = wtx.get_or_create_property_key("name").unwrap();
+    /// let id = wtx.insert_node(
+    ///     NodeBuilder::new().type_label(t).property(k, Value::String("Alice".into())).build()
+    /// ).unwrap();
+    /// assert!(!id.is_null());
+    /// # wtx.commit().unwrap();
+    /// ```
     pub fn insert_node(&mut self, node: Node) -> Result<NodeId, Error> {
         let id = self.schema_cache.allocate_node_id();
         let mut node = node;
@@ -549,6 +578,19 @@ impl<'db> WriteTransaction<'db> {
     /// # Errors
     ///
     /// Returns `Error::NotFound` if the node does not exist.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use graph_db::db::{database::Database, config::DatabaseConfig, builders::*};
+    /// # let db = Database::open(DatabaseConfig::in_memory()).unwrap();
+    /// # let mut wtx = db.write_txn().unwrap();
+    /// # let t = wtx.register_type(TypeDefinitionBuilder::node_type("N").build()).unwrap();
+    /// # let id = wtx.insert_node(NodeBuilder::new().type_label(t).build()).unwrap();
+    /// wtx.delete_node(id).unwrap();
+    /// assert!(wtx.get_node(id).unwrap().is_none());
+    /// # wtx.commit().unwrap();
+    /// ```
     pub fn delete_node(&mut self, id: NodeId) -> Result<(), Error> {
         let node = self
             .get_node(id)?
@@ -580,6 +622,21 @@ impl<'db> WriteTransaction<'db> {
     /// # Errors
     ///
     /// Returns `Error::NotFound` if either endpoint node does not exist.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use graph_db::db::{database::Database, config::DatabaseConfig, builders::*};
+    /// # let db = Database::open(DatabaseConfig::in_memory()).unwrap();
+    /// let mut wtx = db.write_txn().unwrap();
+    /// let nt = wtx.register_type(TypeDefinitionBuilder::node_type("N").build()).unwrap();
+    /// let et = wtx.register_type(TypeDefinitionBuilder::edge_type("E").build()).unwrap();
+    /// let a = wtx.insert_node(NodeBuilder::new().type_label(nt).build()).unwrap();
+    /// let b = wtx.insert_node(NodeBuilder::new().type_label(nt).build()).unwrap();
+    /// let eid = wtx.insert_edge(EdgeBuilder::new(a, b).type_label(et).build()).unwrap();
+    /// assert!(!eid.is_null());
+    /// # wtx.commit().unwrap();
+    /// ```
     pub fn insert_edge(&mut self, edge: Edge) -> Result<EdgeId, Error> {
         let id = self.schema_cache.allocate_edge_id();
         let mut edge = edge;
@@ -642,6 +699,22 @@ impl<'db> WriteTransaction<'db> {
     /// # Errors
     ///
     /// Returns `Error::NotFound` if the node does not exist.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use graph_db::db::{database::Database, config::DatabaseConfig, builders::*};
+    /// # use graph_db::types::Value;
+    /// # let db = Database::open(DatabaseConfig::in_memory()).unwrap();
+    /// # let mut wtx = db.write_txn().unwrap();
+    /// # let t = wtx.register_type(TypeDefinitionBuilder::node_type("N").build()).unwrap();
+    /// # let k = wtx.get_or_create_property_key("name").unwrap();
+    /// # let id = wtx.insert_node(NodeBuilder::new().type_label(t).build()).unwrap();
+    /// wtx.set_node_property(id, k, Value::String("Alice".into())).unwrap();
+    /// let node = wtx.get_node(id).unwrap().unwrap();
+    /// assert_eq!(node.properties.get(&k), Some(&Value::String("Alice".into())));
+    /// # wtx.commit().unwrap();
+    /// ```
     pub fn set_node_property(
         &mut self,
         id: NodeId,
@@ -897,6 +970,20 @@ impl<'db> WriteTransaction<'db> {
     ///
     /// Returns `Error::ConstraintViolation` if validators reject changes,
     /// or `Error::Storage` on I/O failure.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use graph_db::db::{database::Database, config::DatabaseConfig, builders::*};
+    /// # let db = Database::open(DatabaseConfig::in_memory()).unwrap();
+    /// let mut wtx = db.write_txn().unwrap();
+    /// let t = wtx.register_type(TypeDefinitionBuilder::node_type("N").build()).unwrap();
+    /// wtx.insert_node(NodeBuilder::new().type_label(t).build()).unwrap();
+    /// wtx.commit().unwrap();
+    ///
+    /// let rtx = db.read_txn().unwrap();
+    /// assert_eq!(rtx.node_count().unwrap(), 1);
+    /// ```
     pub fn commit(mut self) -> Result<(), Error> {
         self.finished = true;
 
@@ -1304,6 +1391,20 @@ impl<'db> WriteTransaction<'db> {
     }
 
     /// Explicitly aborts the transaction, discarding all changes.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use graph_db::db::{database::Database, config::DatabaseConfig, builders::*};
+    /// # let db = Database::open(DatabaseConfig::in_memory()).unwrap();
+    /// let mut wtx = db.write_txn().unwrap();
+    /// let t = wtx.register_type(TypeDefinitionBuilder::node_type("N").build()).unwrap();
+    /// wtx.insert_node(NodeBuilder::new().type_label(t).build()).unwrap();
+    /// wtx.abort(); // changes discarded
+    ///
+    /// let rtx = db.read_txn().unwrap();
+    /// assert_eq!(rtx.node_count().unwrap(), 0);
+    /// ```
     pub fn abort(mut self) {
         self.finished = true;
     }

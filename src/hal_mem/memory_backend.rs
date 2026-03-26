@@ -14,6 +14,19 @@ use crate::hal::{self, StorageErrorKind, StorageErrorType};
 /// In practice, most operations on `MemoryBackend` are infallible.
 /// This error type exists to satisfy the trait's associated type
 /// requirement.
+///
+/// # Examples
+///
+/// ```
+/// use graph_db::MemoryError;
+///
+/// let err = MemoryError::OutOfBounds {
+///     offset: 100,
+///     requested: 10,
+///     size: 50,
+/// };
+/// assert!(format!("{err}").contains("out of bounds"));
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MemoryError {
     /// A read was attempted beyond the current storage size.
