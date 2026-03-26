@@ -1,4 +1,4 @@
-//! Hardware Abstraction Layer (HAL) — trait definitions for storage I/O.
+//! Storage backend trait definitions for I/O operations.
 //!
 //! This module defines the trait hierarchy that all storage backends
 //! implement. The traits are `no_std + alloc` compatible and object-safe,
@@ -9,10 +9,10 @@
 //!
 //! ```text
 //! StorageErrorType (associated Error type)
-//!     ├── ReadAt   (&self — concurrent reads)
-//!     ├── WriteAt  (&mut self — exclusive writes)
-//!     └── Sync     (&mut self — durability control)
-//!           └── StorageBackend = ReadAt + WriteAt + Sync (blanket impl)
+//!     ├── ReadAt      (&self — concurrent reads)
+//!     ├── WriteAt     (&mut self — exclusive writes)
+//!     └── Durability  (&mut self — durability control)
+//!           └── StorageBackend = ReadAt + WriteAt + Durability (blanket impl)
 //! ```
 //!
 //! Lifecycle traits ([`OpenableBackend`], [`LockableBackend`]) are `std`-only
@@ -23,7 +23,7 @@ pub mod traits;
 pub mod lifecycle;
 
 pub use error::{StorageError, StorageErrorKind, StorageErrorType};
-pub use traits::{ReadAt, StorageBackend, Sync, WriteAt};
+pub use traits::{Durability, ReadAt, StorageBackend, WriteAt};
 
 #[cfg(feature = "std")]
 pub use lifecycle::{LockableBackend, OpenableBackend};

@@ -60,9 +60,9 @@
 //! ├─────────────────────────────────────┤
 //! │  Storage Engine (B+ trees, pages)   │
 //! ├─────────────────────────────────────┤
-//! │  HAL (Hardware Abstraction Layer)   │
+//! │  Storage Backend Traits             │
 //! ├──────────────┬──────────────────────┤
-//! │  std backend  │  In-memory backend  │
+//! │  File backend │  In-memory backend  │
 //! └──────────────┴──────────────────────┘
 //! ```
 //!
@@ -97,13 +97,13 @@ pub mod schema;
 pub mod constraint;
 pub mod inference;
 pub mod error;
-pub mod hal;
+pub mod backend;
 
 #[cfg(feature = "alloc")]
-pub mod hal_mem;
+pub mod backend_mem;
 
 #[cfg(feature = "std")]
-pub mod hal_std;
+pub mod backend_std;
 
 #[cfg(feature = "std")]
 pub mod storage;
@@ -125,13 +125,11 @@ pub use inference::{
     MaterializedMapping, ProvenanceRecord,
 };
 pub use error::{Error, InferenceError, NotFoundError, SchemaError, StorageError, TransactionError};
-pub use hal::{ReadAt, StorageBackend, StorageErrorKind, StorageErrorType, WriteAt};
+pub use backend::{Durability, ReadAt, StorageBackend, StorageErrorKind, StorageErrorType, WriteAt};
 #[cfg(feature = "alloc")]
-pub use hal_mem::{MemoryBackend, MemoryError};
-// Note: hal::Sync is NOT re-exported at the crate root to avoid shadowing
-// core::marker::Sync. Access it as graph_db::hal::Sync.
-// Note: hal::StorageError (trait) is NOT re-exported here to avoid collision
-// with error::StorageError (struct). Access it as graph_db::hal::StorageError.
+pub use backend_mem::{MemoryBackend, MemoryError};
+// Note: backend::StorageError (trait) is NOT re-exported here to avoid collision
+// with error::StorageError (struct). Access it as graph_db::backend::StorageError.
 
 #[cfg(test)]
 mod compile_tests {
@@ -146,30 +144,30 @@ mod compile_tests {
     fn _assert_type_registry_view(_: &dyn TypeRegistryView) {}
     fn _assert_property_key_registry_view(_: &dyn PropertyKeyRegistryView) {}
 
-    // HAL: StorageBackend is object-safe
-    fn _assert_storage_backend_object_safe<E: hal::StorageError>(
-        _: &dyn hal::StorageBackend<Error = E>,
+    // StorageBackend is object-safe
+    fn _assert_storage_backend_object_safe<E: backend::StorageError>(
+        _: &dyn backend::StorageBackend<Error = E>,
     ) {
     }
 
     // FileBackend satisfies StorageBackend
     #[cfg(feature = "std")]
     fn _assert_file_backend_is_storage_backend() {
-        fn _check<T: hal::StorageBackend>() {}
-        _check::<hal_std::FileBackend>();
+        fn _check<T: backend::StorageBackend>() {}
+        _check::<backend_std::FileBackend>();
     }
 
     // FileBackend satisfies OpenableBackend
     #[cfg(feature = "std")]
     fn _assert_file_backend_is_openable() {
-        fn _check<T: hal::OpenableBackend>() {}
-        _check::<hal_std::FileBackend>();
+        fn _check<T: backend::OpenableBackend>() {}
+        _check::<backend_std::FileBackend>();
     }
 
     // FileBackend satisfies LockableBackend
     #[cfg(feature = "std")]
     fn _assert_file_backend_is_lockable() {
-        fn _check<T: hal::LockableBackend>() {}
-        _check::<hal_std::FileBackend>();
+        fn _check<T: backend::LockableBackend>() {}
+        _check::<backend_std::FileBackend>();
     }
 }

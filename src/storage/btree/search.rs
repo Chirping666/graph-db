@@ -3,7 +3,7 @@
 //! Traverses from root to leaf, returning the value for a given key.
 
 use crate::error::StorageError;
-use crate::hal::{self, ReadAt, WriteAt};
+use crate::backend::{self, ReadAt, WriteAt};
 
 use crate::storage::buffer_pool::BufferPool;
 use crate::storage::page::interior::InteriorPage;
@@ -21,7 +21,7 @@ impl BTree {
     /// # Errors
     ///
     /// Returns an error on I/O failure, checksum mismatch, or buffer pool exhaustion.
-    pub fn search<B: ReadAt + WriteAt + hal::Sync>(
+    pub fn search<B: ReadAt + WriteAt + backend::Durability>(
         &self,
         root: PageId,
         key: &[u8],
@@ -34,7 +34,7 @@ impl BTree {
         self.search_recursive(root, key, pool, backend)
     }
 
-    fn search_recursive<B: ReadAt + WriteAt + hal::Sync>(
+    fn search_recursive<B: ReadAt + WriteAt + backend::Durability>(
         &self,
         page_id: PageId,
         key: &[u8],

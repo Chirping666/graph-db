@@ -6,7 +6,7 @@
 //! which may reference stale pages in a CoW B-tree.
 
 use crate::error::StorageError;
-use crate::hal::{self, ReadAt, WriteAt};
+use crate::backend::{self, ReadAt, WriteAt};
 
 use crate::storage::buffer_pool::BufferPool;
 use crate::storage::page::interior::InteriorPage;
@@ -52,7 +52,7 @@ impl BTreeCursor {
     /// # Errors
     ///
     /// Returns an error on I/O failure or buffer pool exhaustion.
-    pub fn new<B: ReadAt + WriteAt + hal::Sync>(
+    pub fn new<B: ReadAt + WriteAt + backend::Durability>(
         root: PageId,
         start_key: &[u8],
         end_key: Option<&[u8]>,
@@ -143,7 +143,7 @@ impl BTreeCursor {
     ///
     /// Returns an error on I/O failure or buffer pool exhaustion.
     #[allow(clippy::type_complexity)]
-    pub fn next<B: ReadAt + WriteAt + hal::Sync>(
+    pub fn next<B: ReadAt + WriteAt + backend::Durability>(
         &mut self,
         pool: &mut BufferPool,
         backend: &mut B,
@@ -195,7 +195,7 @@ impl BTreeCursor {
     /// Navigates to the next leaf page using the interior page stack.
     ///
     /// Returns `true` if a new leaf was loaded, `false` if the tree is exhausted.
-    fn advance_to_next_leaf<B: ReadAt + WriteAt + hal::Sync>(
+    fn advance_to_next_leaf<B: ReadAt + WriteAt + backend::Durability>(
         &mut self,
         pool: &mut BufferPool,
         backend: &mut B,
@@ -232,7 +232,7 @@ impl BTreeCursor {
 
     /// Descends from a given page to its leftmost leaf, pushing interior
     /// pages onto the stack.
-    fn descend_to_leftmost_leaf<B: ReadAt + WriteAt + hal::Sync>(
+    fn descend_to_leftmost_leaf<B: ReadAt + WriteAt + backend::Durability>(
         &mut self,
         mut page_id: PageId,
         pool: &mut BufferPool,

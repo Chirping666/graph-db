@@ -1,6 +1,6 @@
-//! Core HAL I/O traits.
+//! Core storage backend I/O traits.
 //!
-//! Defines [`ReadAt`], [`WriteAt`], [`Sync`], and [`StorageBackend`].
+//! Defines [`ReadAt`], [`WriteAt`], [`Durability`], and [`StorageBackend`].
 //! All traits are object-safe and `no_std + alloc` compatible.
 
 use super::error::StorageErrorType;
@@ -51,8 +51,8 @@ pub trait ReadAt: StorageErrorType {
 ///
 /// # Durability
 ///
-/// Writes are **not** durable until [`Sync::sync_data`] or
-/// [`Sync::sync_all`] is called. Data may be buffered in userspace
+/// Writes are **not** durable until [`Durability::sync_data`] or
+/// [`Durability::sync_all`] is called. Data may be buffered in userspace
 /// or OS page cache.
 ///
 /// This trait is object-safe.
@@ -87,7 +87,7 @@ pub trait WriteAt: StorageErrorType {
     /// # fsync note
     ///
     /// After extending a file with `set_len()`, the caller **must** call
-    /// [`Sync::sync_all`] (not `sync_data`) to ensure the new file size
+    /// [`Durability::sync_all`] (not `sync_data`) to ensure the new file size
     /// metadata is durable.
     ///
     /// # Errors
@@ -104,8 +104,8 @@ pub trait WriteAt: StorageErrorType {
 ///
 /// Provides two sync levels for the commit protocol:
 ///
-/// - [`sync_data`](Sync::sync_data) — data only (faster, omits metadata sync).
-/// - [`sync_all`](Sync::sync_all) — data + metadata (required after file extension).
+/// - [`sync_data`](Durability::sync_data) — data only (faster, omits metadata sync).
+/// - [`sync_all`](Durability::sync_all) — data + metadata (required after file extension).
 ///
 /// # Platform mapping
 ///
@@ -117,7 +117,7 @@ pub trait WriteAt: StorageErrorType {
 /// | Memory   | No-op         | No-op        |
 ///
 /// This trait is object-safe.
-pub trait Sync: StorageErrorType {
+pub trait Durability: StorageErrorType {
     /// Flushes all buffered data writes to stable storage.
     ///
     /// After this returns `Ok(())`, all bytes written via
@@ -131,7 +131,7 @@ pub trait Sync: StorageErrorType {
 
     /// Flushes all buffered data **and metadata** to stable storage.
     ///
-    /// This is a superset of [`sync_data`](Sync::sync_data) —
+    /// This is a superset of [`sync_data`](Durability::sync_data) —
     /// additionally ensures file metadata (size, modification time,
     /// directory entry) is durable.
     ///
@@ -149,7 +149,7 @@ pub trait Sync: StorageErrorType {
 /// Full storage backend: readable, writable, and syncable.
 ///
 /// This is the primary trait bound used throughout the storage engine.
-/// Any type implementing [`ReadAt`] + [`WriteAt`] + [`Sync`] automatically
+/// Any type implementing [`ReadAt`] + [`WriteAt`] + [`Durability`] automatically
 /// implements `StorageBackend` via the blanket impl — users never need
 /// to write `impl StorageBackend for MyBackend`.
 ///
@@ -162,11 +162,11 @@ pub trait Sync: StorageErrorType {
 /// ```
 ///
 /// This trait is object-safe.
-pub trait StorageBackend: ReadAt + WriteAt + Sync {}
+pub trait StorageBackend: ReadAt + WriteAt + Durability {}
 
 /// Blanket implementation: any type with all three sub-traits is
 /// automatically a [`StorageBackend`].
-impl<T: ReadAt + WriteAt + Sync> StorageBackend for T {}
+impl<T: ReadAt + WriteAt + Durability> StorageBackend for T {}
 
 #[cfg(test)]
 mod tests {
@@ -237,7 +237,7 @@ mod tests {
         }
     }
 
-    impl Sync for MockBackend {
+    impl Durability for MockBackend {
         fn sync_data(&mut self) -> Result<(), MockError> {
             Ok(())
         }
@@ -325,6 +325,6 @@ mod tests {
     // Object-safety assertions
     fn _assert_read_at_object_safe(_: &dyn ReadAt<Error = MockError>) {}
     fn _assert_write_at_object_safe(_: &mut dyn WriteAt<Error = MockError>) {}
-    fn _assert_sync_object_safe(_: &mut dyn Sync<Error = MockError>) {}
+    fn _assert_durability_object_safe(_: &mut dyn Durability<Error = MockError>) {}
     fn _assert_storage_backend_object_safe(_: &dyn StorageBackend<Error = MockError>) {}
 }

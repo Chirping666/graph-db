@@ -1,4 +1,4 @@
-//! HAL error types.
+//! Storage backend error types.
 //!
 //! Defines [`StorageErrorKind`] for categorizing storage errors,
 //! the [`StorageError`] trait that all backend error types implement,
@@ -56,7 +56,7 @@ impl fmt::Display for StorageErrorKind {
     }
 }
 
-/// Trait for HAL storage errors.
+/// Trait for storage backend errors.
 ///
 /// Every concrete error type from a storage backend must implement this
 /// trait. It replaces `std::error::Error` in `no_std` environments while
@@ -72,7 +72,7 @@ pub trait StorageError: fmt::Debug + fmt::Display {
 /// Associates a concrete error type with a storage implementation.
 ///
 /// This trait groups the associated error type shared by [`ReadAt`](super::traits::ReadAt),
-/// [`WriteAt`](super::traits::WriteAt), and [`Sync`](super::traits::Sync),
+/// [`WriteAt`](super::traits::WriteAt), and [`Durability`](super::traits::Durability),
 /// avoiding repetition. It is a supertrait of all I/O traits.
 ///
 /// This trait is object-safe.

@@ -4,7 +4,7 @@
 //! All modifications produce new page copies (CoW); old pages are freed.
 
 use crate::error::StorageError;
-use crate::hal::{self, ReadAt, WriteAt};
+use crate::backend::{self, ReadAt, WriteAt};
 
 use crate::storage::allocator::PageAllocator;
 use crate::storage::buffer_pool::BufferPool;
@@ -44,7 +44,7 @@ impl BTree {
     /// # Errors
     ///
     /// Returns an error on I/O failure, checksum mismatch, or buffer pool exhaustion.
-    pub fn insert<B: ReadAt + WriteAt + hal::Sync>(
+    pub fn insert<B: ReadAt + WriteAt + backend::Durability>(
         &self,
         root: PageId,
         key: &[u8],
@@ -257,7 +257,7 @@ impl BTree {
     }
 
     /// CoW-copies the interior path from leaf parent up to root, replacing the child pointer.
-    fn cow_path<B: ReadAt + WriteAt + hal::Sync>(
+    fn cow_path<B: ReadAt + WriteAt + backend::Durability>(
         &self,
         path: &[PathEntry],
         new_child: PageId,
@@ -320,7 +320,7 @@ impl BTree {
     }
 
     /// Propagates a split up through the interior path, creating a new root if needed.
-    fn propagate_split<B: ReadAt + WriteAt + hal::Sync>(
+    fn propagate_split<B: ReadAt + WriteAt + backend::Durability>(
         &self,
         path: &[PathEntry],
         mut promoted: PromotedKey,

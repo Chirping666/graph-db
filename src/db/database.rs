@@ -9,9 +9,9 @@ use std::sync::{Arc, Mutex, RwLock};
 
 use crate::constraint::ConstraintValidator;
 use crate::error::{Error, StorageError};
-use crate::hal::{self, OpenableBackend, ReadAt, StorageErrorKind, StorageErrorType, WriteAt};
-use crate::hal_mem::{MemoryBackend, MemoryError};
-use crate::hal_std::file_backend::{FileBackend, FileBackendConfig, FileError};
+use crate::backend::{self, OpenableBackend, ReadAt, StorageErrorKind, StorageErrorType, WriteAt};
+use crate::backend_mem::{MemoryBackend, MemoryError};
+use crate::backend_std::file_backend::{FileBackend, FileBackendConfig, FileError};
 use crate::inference::InferenceRule;
 use crate::storage::page::PageId;
 use crate::storage::serialization;
@@ -56,7 +56,7 @@ impl std::error::Error for AnyBackendError {
     }
 }
 
-impl hal::StorageError for AnyBackendError {
+impl backend::StorageError for AnyBackendError {
     fn kind(&self) -> StorageErrorKind {
         match self {
             AnyBackendError::File(e) => e.kind(),
@@ -67,7 +67,7 @@ impl hal::StorageError for AnyBackendError {
 
 /// Internal backend enum supporting both file and in-memory storage.
 ///
-/// Not exposed in the public API. Implements all HAL traits via
+/// Not exposed in the public API. Implements all backend traits via
 /// match-and-delegate so that `StorageEngine<AnyBackend>` works
 /// identically regardless of the underlying backend.
 pub(crate) enum AnyBackend {
@@ -113,18 +113,22 @@ impl WriteAt for AnyBackend {
     }
 }
 
-impl hal::Sync for AnyBackend {
+impl backend::Durability for AnyBackend {
     fn sync_data(&mut self) -> Result<(), AnyBackendError> {
         match self {
-            AnyBackend::File(f) => hal::Sync::sync_data(f).map_err(AnyBackendError::File),
-            AnyBackend::Memory(m) => hal::Sync::sync_data(m).map_err(AnyBackendError::Memory),
+            AnyBackend::File(f) => backend::Durability::sync_data(f).map_err(AnyBackendError::File),
+            AnyBackend::Memory(m) => {
+                backend::Durability::sync_data(m).map_err(AnyBackendError::Memory)
+            }
         }
     }
 
     fn sync_all(&mut self) -> Result<(), AnyBackendError> {
         match self {
-            AnyBackend::File(f) => hal::Sync::sync_all(f).map_err(AnyBackendError::File),
-            AnyBackend::Memory(m) => hal::Sync::sync_all(m).map_err(AnyBackendError::Memory),
+            AnyBackend::File(f) => backend::Durability::sync_all(f).map_err(AnyBackendError::File),
+            AnyBackend::Memory(m) => {
+                backend::Durability::sync_all(m).map_err(AnyBackendError::Memory)
+            }
         }
     }
 }
@@ -211,8 +215,8 @@ pub struct Database {
     pub(crate) inner: Arc<DatabaseInner>,
 }
 
-/// Helper to convert a HAL error to a crate StorageError.
-fn map_hal_err<E: crate::hal::StorageError>(e: E) -> StorageError {
+/// Helper to convert a backend error to a crate StorageError.
+fn map_backend_err<E: crate::backend::StorageError>(e: E) -> StorageError {
     StorageError {
         message: format!("{e}"),
         source: None,
@@ -261,8 +265,8 @@ impl Database {
         };
 
         // Try to open; if it fails, create.
-        let file_backend = FileBackend::open_or_create(backend_config).map_err(map_hal_err)?;
-        let file_len = file_backend.len().map_err(map_hal_err)?;
+        let file_backend = FileBackend::open_or_create(backend_config).map_err(map_backend_err)?;
+        let file_len = file_backend.len().map_err(map_backend_err)?;
         let backend = AnyBackend::File(file_backend);
 
         let engine = if file_len == 0 {

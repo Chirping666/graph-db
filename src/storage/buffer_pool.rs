@@ -7,9 +7,9 @@
 use std::collections::HashMap;
 
 use crate::error::StorageError;
-use crate::hal::{self, ReadAt, WriteAt};
+use crate::backend::{self, ReadAt, WriteAt};
 
-use super::map_hal_err;
+use super::map_backend_err;
 use super::page::header::CommonPageHeader;
 use super::page::PageId;
 
@@ -112,7 +112,7 @@ impl BufferPool {
     /// - I/O error reading from backend.
     /// - `MediaCorruption` if the page's CRC32C checksum is invalid.
     /// - Buffer pool exhausted (all frames pinned).
-    pub fn fetch_page<B: ReadAt + WriteAt + hal::Sync>(
+    pub fn fetch_page<B: ReadAt + WriteAt + backend::Durability>(
         &mut self,
         page_id: PageId,
         backend: &mut B,
@@ -142,7 +142,7 @@ impl BufferPool {
         let offset = page_id.0 * self.page_size as u64;
         backend
             .read_at(offset, &mut self.frames[frame_idx].data)
-            .map_err(map_hal_err)?;
+            .map_err(map_backend_err)?;
 
         // Validate checksum
         CommonPageHeader::validate_checksum(&self.frames[frame_idx].data)?;
@@ -229,7 +229,7 @@ impl BufferPool {
     /// # Errors
     ///
     /// Returns an error on I/O failure.
-    pub fn flush_page<B: WriteAt + hal::Sync>(
+    pub fn flush_page<B: WriteAt + backend::Durability>(
         &mut self,
         frame_index: usize,
         backend: &mut B,
@@ -250,7 +250,7 @@ impl BufferPool {
         let offset = frame.page_id.0 * self.page_size as u64;
         backend
             .write_at(offset, &frame.data)
-            .map_err(map_hal_err)?;
+            .map_err(map_backend_err)?;
         frame.dirty = false;
         Ok(())
     }
@@ -265,7 +265,7 @@ impl BufferPool {
     /// # Errors
     ///
     /// Returns an error on the first I/O failure.
-    pub fn flush_all_dirty<B: WriteAt + hal::Sync>(
+    pub fn flush_all_dirty<B: WriteAt + backend::Durability>(
         &mut self,
         backend: &mut B,
     ) -> Result<(), StorageError> {
@@ -306,7 +306,7 @@ impl BufferPool {
     /// # Errors
     ///
     /// Returns an error if the pool is exhausted (all frames pinned).
-    pub fn new_page<B: ReadAt + WriteAt + hal::Sync>(
+    pub fn new_page<B: ReadAt + WriteAt + backend::Durability>(
         &mut self,
         page_id: PageId,
         backend: &mut B,
@@ -339,7 +339,7 @@ impl BufferPool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hal::WriteAt;
+    use crate::backend::WriteAt;
     use crate::storage::page::header::CommonPageHeader;
     use crate::storage::page::{DEFAULT_PAGE_SIZE, PageType};
     use crate::storage::test_utils::TestBackend;

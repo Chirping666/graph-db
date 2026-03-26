@@ -15,8 +15,8 @@ pub mod format;
 pub mod serialization;
 pub mod snapshot;
 
-/// Converts a HAL backend error into a crate-level [`StorageError`](crate::error::StorageError).
-pub(crate) fn map_hal_err<E: crate::hal::StorageError>(e: E) -> crate::error::StorageError {
+/// Converts a backend error into a crate-level [`StorageError`](crate::error::StorageError).
+pub(crate) fn map_backend_err<E: crate::backend::StorageError>(e: E) -> crate::error::StorageError {
     crate::error::StorageError {
         message: alloc::format!("{e}"),
         source: None,
@@ -26,7 +26,7 @@ pub(crate) fn map_hal_err<E: crate::hal::StorageError>(e: E) -> crate::error::St
 extern crate alloc;
 
 use crate::error::StorageError;
-use crate::hal::StorageBackend;
+use crate::backend::StorageBackend;
 
 use self::allocator::PageAllocator;
 use self::btree::{BTree, BTreeConfig};
@@ -120,7 +120,7 @@ impl<B: StorageBackend> StorageEngine<B> {
 
         // Validate identity header
         let mut hdr_buf = [0u8; IDENTITY_HEADER_SIZE];
-        backend.read_at(0, &mut hdr_buf).map_err(map_hal_err)?;
+        backend.read_at(0, &mut hdr_buf).map_err(map_backend_err)?;
         let identity = FileIdentityHeader::deserialize(&hdr_buf)?;
         identity.validate_compatible()?;
         let file_page_size = identity.page_size()?;
@@ -311,10 +311,10 @@ impl<B: StorageBackend> StorageEngine<B> {
             // Extend file first
             self.backend
                 .set_len(new_total * self.page_size as u64)
-                .map_err(map_hal_err)?;
-            self.backend.sync_all().map_err(map_hal_err)?;
+                .map_err(map_backend_err)?;
+            self.backend.sync_all().map_err(map_backend_err)?;
         } else {
-            self.backend.sync_data().map_err(map_hal_err)?;
+            self.backend.sync_data().map_err(map_backend_err)?;
         }
 
         // Phase 3: Write new superblock to inactive slot
@@ -339,7 +339,7 @@ impl<B: StorageBackend> StorageEngine<B> {
         // Read identity header from page 0
         self.backend
             .read_at(0, &mut sb_page[..IDENTITY_HEADER_SIZE])
-            .map_err(map_hal_err)?;
+            .map_err(map_backend_err)?;
         new_superblock.serialize(&mut sb_page);
         let checksum = Superblock::compute_checksum(&sb_page);
         sb_page[184..192].copy_from_slice(&checksum.to_le_bytes());
@@ -348,10 +348,10 @@ impl<B: StorageBackend> StorageEngine<B> {
         let sb_offset = inactive_slot as u64 * self.page_size as u64;
         self.backend
             .write_at(sb_offset, &sb_page)
-            .map_err(map_hal_err)?;
+            .map_err(map_backend_err)?;
 
         // Phase 4: Second fsync
-        self.backend.sync_data().map_err(map_hal_err)?;
+        self.backend.sync_data().map_err(map_backend_err)?;
 
         // Phase 5: Update internal state
         self.active_superblock = Superblock {
@@ -505,8 +505,7 @@ mod engine_tests {
 #[cfg(test)]
 mod crash_recovery_tests {
     use super::*;
-    use crate::hal::{ReadAt, WriteAt};
-    use crate::hal::Sync as HalSync;
+    use crate::backend::{Durability, ReadAt, WriteAt};
     use crate::storage::test_utils::TestBackend;
 
     fn default_config() -> StorageEngineConfig {
@@ -613,7 +612,7 @@ mod crash_recovery_tests {
         let _r = engine.insert(snap.roots.node_store, &200u64.to_be_bytes(), b"new", 3).unwrap();
         // Flush + fsync (phase 1-2 of commit)
         engine.buffer_pool.flush_all_dirty(&mut engine.backend).unwrap();
-        HalSync::sync_data(&mut engine.backend).map_err(map_hal_err).unwrap();
+        Durability::sync_data(&mut engine.backend).map_err(map_backend_err).unwrap();
         // "Crash" before superblock write
         backend = engine.backend;
 
@@ -651,8 +650,8 @@ pub(crate) mod test_utils {
 
     use std::sync::Mutex;
 
-    use crate::hal::error::{StorageErrorKind, StorageErrorType};
-    use crate::hal::{ReadAt, WriteAt};
+    use crate::backend::error::{StorageErrorKind, StorageErrorType};
+    use crate::backend::{ReadAt, WriteAt};
 
     /// A simple in-memory storage backend error.
     #[derive(Debug)]
@@ -669,7 +668,7 @@ pub(crate) mod test_utils {
 
     impl std::error::Error for TestError {}
 
-    impl crate::hal::error::StorageError for TestError {
+    impl crate::backend::error::StorageError for TestError {
         fn kind(&self) -> StorageErrorKind {
             self.kind
         }
@@ -743,7 +742,7 @@ pub(crate) mod test_utils {
         }
     }
 
-    impl crate::hal::Sync for TestBackend {
+    impl crate::backend::Durability for TestBackend {
         fn sync_data(&mut self) -> Result<(), TestError> {
             Ok(())
         }

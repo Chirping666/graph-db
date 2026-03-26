@@ -5,9 +5,9 @@
 //! increments per `008-file-format-spec.md` §12.
 
 use crate::error::StorageError;
-use crate::hal::WriteAt;
+use crate::backend::WriteAt;
 
-use super::map_hal_err;
+use super::map_backend_err;
 use super::page::PageId;
 
 /// Page allocator managing page allocation, deallocation, and file growth.
@@ -131,7 +131,7 @@ impl PageAllocator {
         let new_total = old_total + increment;
 
         let new_size = new_total * self.page_size as u64;
-        backend.set_len(new_size).map_err(map_hal_err)?;
+        backend.set_len(new_size).map_err(map_backend_err)?;
 
         self.total_pages = new_total;
         // Don't advance next_page_id here — that happens on allocate_page
@@ -144,7 +144,7 @@ impl PageAllocator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hal::WriteAt;
+    use crate::backend::WriteAt;
     use crate::storage::page::DEFAULT_PAGE_SIZE;
     use crate::storage::test_utils::TestBackend;
 

@@ -12,7 +12,7 @@ Every Claude Code session follows these steps in order. Do not skip steps.
 
 ### 1. Read the design document and relevant project knowledge
 
-Read `012-design-document.md` — the single source of truth for all design decisions. If the task involves a specific subsystem (e.g., file format, HAL, inference), also read the upstream sub-document listed in `012`'s cross-reference index (Section 20). When in doubt about a design question, the design document takes precedence over all other sources.
+Read `012-design-document.md` — the single source of truth for all design decisions. If the task involves a specific subsystem (e.g., file format, storage backend, inference), also read the upstream sub-document listed in `012`'s cross-reference index (Section 20). When in doubt about a design question, the design document takes precedence over all other sources.
 
 ### 2. Read the scoped CLAUDE.md for the current task
 
@@ -97,14 +97,14 @@ The following modules must compile under `#![no_std]` with only the `alloc` crat
 - `constraint/`
 - `inference/`
 - `error/` (core error types)
-- `hal/` (trait definitions)
-- `hal_mem/`
+- `backend/` (trait definitions)
+- `backend_mem/`
 
 Use `alloc::` imports (`alloc::string::String`, `alloc::vec::Vec`, `alloc::collections::BTreeMap`, `alloc::boxed::Box`) instead of `std::` equivalents in these modules.
 
 The following modules require `std` and are gated behind `#[cfg(feature = "std")]`:
 - `db/` (Database, transactions, inference engine)
-- `hal_std/` (FileBackend)
+- `backend_std/` (FileBackend)
 - `storage/` (buffer pool, B-tree operations, page management)
 
 **Feature flag structure:**
@@ -177,11 +177,11 @@ Every `pub` item — struct, enum, trait, method, function, constant, type alias
 ```
 
 **Types:** `feat`, `fix`, `refactor`, `test`, `docs`, `chore`  
-**Scopes:** `types`, `schema`, `constraint`, `inference`, `hal`, `hal-std`, `hal-mem`, `storage`, `db`, `api`, `error`
+**Scopes:** `types`, `schema`, `constraint`, `inference`, `backend`, `backend-std`, `backend-mem`, `storage`, `db`, `api`, `error`
 
 Examples:
 - `feat(types): implement NodeId, EdgeId, TypeId, PropertyKeyId newtypes`
-- `feat(hal): define ReadAt, WriteAt, and hal::Sync traits`
+- `feat(backend): define ReadAt, WriteAt, and Durability traits`
 - `test(storage): add crash recovery test for dual-superblock commit`
 - `fix(db): prevent deadlock in concurrent read transaction creation`
 - `docs(api): add quick-start example to crate root`
@@ -195,12 +195,12 @@ Each commit should represent a single logical change — typically one checklist
 - Methods: `snake_case`, verb-first for mutations (`insert_node`, `delete_edge`), noun-first for accessors (`type_registry`, `node_count`).
 - Transaction constructors: `read_txn()`, `write_txn()`.
 - Feature flags: `std`, `alloc` — no proliferation.
-- Modules: `lowercase`, underscore-separated for multi-word (`hal_std`, `hal_mem`, `write_buffer`).
+- Modules: `lowercase`, underscore-separated for multi-word (`backend_std`, `backend_mem`, `write_buffer`).
 
 **Error handling:**
 - All recoverable errors return `Result`. Never panic for recoverable conditions.
 - Panics are reserved for programmer errors only (e.g., using a transaction after `commit()`).
-- HAL errors use `StorageErrorKind` for generic handling; are type-erased at the public API boundary.
+- Backend errors use `StorageErrorKind` for generic handling; are type-erased at the public API boundary.
 - All public methods return `Result<T, Error>` where `Error` is the crate's unified error enum.
 
 **Serialization:**
@@ -215,7 +215,7 @@ Each commit should represent a single logical change — typically one checklist
 
 **Unsafe code:**
 - Minimize. Each `unsafe` block must have a `// SAFETY:` comment explaining why it is sound.
-- Prefer safe abstractions. If `unsafe` is needed for FFI (e.g., in `hal_std`), isolate it behind safe wrappers.
+- Prefer safe abstractions. If `unsafe` is needed for FFI (e.g., in `backend_std`), isolate it behind safe wrappers.
 
 ---
 
@@ -241,16 +241,16 @@ graph_db/
 ├── error/                  // Error types (no_std + alloc core; std extensions)
 │   └── mod.rs              // Error, SchemaError, StorageError,
 │                           // NotFoundError, TransactionError, InferenceError
-├── hal/                    // HAL trait definitions (no_std + alloc)
+├── backend/                // Storage backend trait definitions (no_std + alloc)
 │   ├── mod.rs
 │   ├── error.rs            // StorageErrorKind, StorageError trait,
 │   │                       // StorageErrorType
-│   ├── traits.rs           // ReadAt, WriteAt, hal::Sync, StorageBackend
+│   ├── traits.rs           // ReadAt, WriteAt, Durability, StorageBackend
 │   └── lifecycle.rs        // OpenableBackend, LockableBackend (trait defs)
-├── hal_std/                // std persistent backend (std feature only)
+├── backend_std/            // std persistent backend (std feature only)
 │   ├── mod.rs
 │   └── file_backend.rs     // FileBackend, FileBackendConfig, FileLockGuard
-├── hal_mem/                // In-memory backend (alloc)
+├── backend_mem/            // In-memory backend (alloc)
 │   ├── mod.rs
 │   └── memory_backend.rs   // MemoryBackend
 ├── storage/                // Storage engine internals (std feature)
@@ -284,7 +284,7 @@ When implementing, consult these sections of `012-design-document.md`:
 | Type system & schema | §5 |
 | Graph storage (B-trees, records, keys) | §6 |
 | Single-file format (pages, superblock) | §7 |
-| HAL traits | §8 |
+| Storage backend traits (HAL) | §8 |
 | Buffer pool | §9 |
 | Concurrency model | §10 |
 | Transaction lifecycle | §11 |
@@ -307,7 +307,7 @@ For byte-level format details, also consult:
 
 Implementation tasks should be aware of these open items from the design phase:
 
-1. **`hal::Sync` naming conflict with `core::marker::Sync`.** Use module-qualified `hal::Sync` or rename to `DurabilityControl` / `StorageSync` if implementation proves awkward. Resolve during Task 23 (HAL implementation).
+1. ~~**`hal::Sync` naming conflict with `core::marker::Sync`.**~~ **Resolved:** renamed to `backend::Durability`.
 
 2. **Error type for `dyn StorageBackend`.** `Box<dyn StorageError>` works but allocates on the error path. A `BoxedStorageError` wrapper is an alternative. Resolve during Task 23.
 

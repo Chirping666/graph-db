@@ -13,7 +13,7 @@ use super::traits::StorageBackend;
 ///
 /// This trait is `std`-only because filesystem operations have no `no_std`
 /// analogue. The core I/O traits ([`ReadAt`](super::traits::ReadAt),
-/// [`WriteAt`](super::traits::WriteAt), [`Sync`](super::traits::Sync))
+/// [`WriteAt`](super::traits::WriteAt), [`Durability`](super::traits::Durability))
 /// do **not** require this — a `no_std` backend can be constructed by
 /// other means and then used via [`StorageBackend`].
 ///

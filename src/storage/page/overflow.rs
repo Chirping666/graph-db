@@ -6,8 +6,8 @@
 //! Layout follows `008-file-format-spec.md` §9.
 
 use crate::error::StorageError;
-use crate::hal::ReadAt;
-use crate::storage::map_hal_err;
+use crate::backend::ReadAt;
+use crate::storage::map_backend_err;
 
 use super::header::CommonPageHeader;
 use super::{PageId, PageType};
@@ -189,7 +189,7 @@ impl OverflowPage {
         while !current.is_null() {
             backend
                 .read_at(current.0 * page_size as u64, &mut buf)
-                .map_err(map_hal_err)?;
+                .map_err(map_backend_err)?;
             CommonPageHeader::validate_checksum(&buf)?;
             let page = Self::parse(&buf, page_size)?;
             result.extend_from_slice(&page.data);
@@ -214,7 +214,7 @@ impl OverflowPage {
 mod tests {
     use super::*;
     use crate::storage::page::DEFAULT_PAGE_SIZE;
-    use crate::hal::WriteAt;
+    use crate::backend::WriteAt;
     use crate::storage::test_utils::TestBackend;
 
     #[test]

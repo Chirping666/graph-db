@@ -8,7 +8,7 @@
 //! TODO: Implement leaf merge for better space utilization in v2.
 
 use crate::error::StorageError;
-use crate::hal::{self, ReadAt, WriteAt};
+use crate::backend::{self, ReadAt, WriteAt};
 
 use crate::storage::allocator::PageAllocator;
 use crate::storage::buffer_pool::BufferPool;
@@ -41,7 +41,7 @@ impl BTree {
     /// # Errors
     ///
     /// Returns an error on I/O failure, checksum mismatch, or buffer pool exhaustion.
-    pub fn delete<B: ReadAt + WriteAt + hal::Sync>(
+    pub fn delete<B: ReadAt + WriteAt + backend::Durability>(
         &self,
         root: PageId,
         key: &[u8],
@@ -150,7 +150,7 @@ impl BTree {
     }
 
     /// CoW-copies the interior path with the updated child pointer after deletion.
-    fn cow_delete_path<B: ReadAt + WriteAt + hal::Sync>(
+    fn cow_delete_path<B: ReadAt + WriteAt + backend::Durability>(
         &self,
         path: &[PathEntry],
         new_child: PageId,

@@ -15,7 +15,7 @@ use graph_db::db::builders::{EdgeBuilder, NodeBuilder, TypeDefinitionBuilder};
 use graph_db::db::config::DatabaseConfig;
 use graph_db::db::database::Database;
 use graph_db::error::Error;
-use graph_db::hal_mem::MemoryBackend;
+use graph_db::backend_mem::MemoryBackend;
 use graph_db::inference::{InferenceMode, InferenceResult, InferenceRule, InferredFact};
 use graph_db::schema::{GraphView, PropertyKeyRegistryView, TypeRegistryView};
 use graph_db::types::{NodeId, PropertyKeyId, TypeId, Value};

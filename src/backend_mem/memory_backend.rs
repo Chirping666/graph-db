@@ -3,7 +3,7 @@
 use alloc::vec::Vec;
 use core::fmt;
 
-use crate::hal::{self, StorageErrorKind, StorageErrorType};
+use crate::backend::{self, StorageErrorKind, StorageErrorType};
 
 /// Error type for the in-memory storage backend.
 ///
@@ -55,7 +55,7 @@ impl fmt::Display for MemoryError {
     }
 }
 
-impl crate::hal::StorageError for MemoryError {
+impl crate::backend::StorageError for MemoryError {
     fn kind(&self) -> StorageErrorKind {
         match self {
             MemoryError::OutOfBounds { .. } => StorageErrorKind::OutOfBounds,
@@ -84,11 +84,11 @@ impl std::error::Error for MemoryError {}
 /// ([`save_to_file`](Self::save_to_file)) and loading from one
 /// ([`load_from_file`](Self::load_from_file)). The resulting file is a valid
 /// database file and can be opened with
-/// [`FileBackend`](crate::hal_std::FileBackend).
+/// [`FileBackend`](crate::backend_std::FileBackend).
 ///
 /// # Thread safety
 ///
-/// [`ReadAt::read_at`](crate::hal::ReadAt::read_at) takes `&self`. Because
+/// [`ReadAt::read_at`](crate::backend::ReadAt::read_at) takes `&self`. Because
 /// `MemoryBackend` stores data in a plain `Vec<u8>`, immutable access is safe
 /// for concurrent reads. The storage engine wraps it in `RwLock` as with any
 /// backend.
@@ -164,14 +164,14 @@ impl Default for MemoryBackend {
 }
 
 // ---------------------------------------------------------------------------
-// HAL trait implementations
+// Backend trait implementations
 // ---------------------------------------------------------------------------
 
 impl StorageErrorType for MemoryBackend {
     type Error = MemoryError;
 }
 
-impl hal::ReadAt for MemoryBackend {
+impl backend::ReadAt for MemoryBackend {
     /// Reads exactly `buf.len()` bytes starting at `offset`.
     ///
     /// Returns `Ok(())` immediately for an empty buffer without any bounds
@@ -213,10 +213,10 @@ impl hal::ReadAt for MemoryBackend {
     }
 }
 
-impl hal::WriteAt for MemoryBackend {
+impl backend::WriteAt for MemoryBackend {
     /// Writes exactly `buf.len()` bytes at `offset`.
     ///
-    /// Unlike [`FileBackend`](crate::hal_std::FileBackend), this
+    /// Unlike [`FileBackend`](crate::backend_std::FileBackend), this
     /// implementation **auto-extends** the backing storage if the write
     /// extends beyond the current length. Bytes between the old end and
     /// `offset` are zero-filled.
@@ -252,7 +252,7 @@ impl hal::WriteAt for MemoryBackend {
     }
 }
 
-impl hal::Sync for MemoryBackend {
+impl backend::Durability for MemoryBackend {
     /// No-op: in-memory writes are immediately visible.
     ///
     /// # Errors
@@ -282,7 +282,7 @@ impl MemoryBackend {
     ///
     /// Writes the raw byte contents of the in-memory storage to the
     /// specified path. The resulting file is a valid database file and can
-    /// be opened with [`FileBackend`](crate::hal_std::FileBackend).
+    /// be opened with [`FileBackend`](crate::backend_std::FileBackend).
     ///
     /// # Errors
     ///
@@ -301,7 +301,7 @@ impl MemoryBackend {
     /// Reads the entire file into memory. The file should be a valid
     /// database file (e.g., one previously saved with
     /// [`save_to_file`](Self::save_to_file) or created by
-    /// [`FileBackend`](crate::hal_std::FileBackend)).
+    /// [`FileBackend`](crate::backend_std::FileBackend)).
     ///
     /// # Errors
     ///
@@ -319,8 +319,7 @@ impl MemoryBackend {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hal::{ReadAt, WriteAt};
-    use crate::hal::Sync as HalSync;
+    use crate::backend::{Durability, ReadAt, WriteAt};
 
     // -- MemoryError tests --
 
@@ -340,7 +339,7 @@ mod tests {
 
     #[test]
     fn memory_error_kind() {
-        use crate::hal::StorageError as _;
+        use crate::backend::StorageError as _;
         let err = MemoryError::OutOfBounds {
             offset: 0,
             requested: 1,
@@ -465,7 +464,7 @@ mod tests {
 
     #[test]
     fn read_at_overflow() {
-        use crate::hal::StorageError as _;
+        use crate::backend::StorageError as _;
         let b = MemoryBackend::from_bytes(vec![1, 2, 3]);
         let mut buf = [0u8; 1];
         // u64::MAX + 1 would overflow
@@ -547,7 +546,7 @@ mod tests {
         assert_eq!(b.as_bytes(), &[1, 2, 3]);
     }
 
-    // -- hal::Sync tests --
+    // -- Durability tests --
 
     #[test]
     fn sync_data_noop() {
@@ -571,7 +570,7 @@ mod tests {
 
     // -- StorageBackend compile-time assertion --
 
-    fn _assert_storage_backend<T: crate::hal::StorageBackend>() {}
+    fn _assert_storage_backend<T: crate::backend::StorageBackend>() {}
     fn _check() {
         _assert_storage_backend::<MemoryBackend>();
     }

@@ -39,7 +39,7 @@ impl BTree {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hal::WriteAt;
+    use crate::backend::WriteAt;
     use crate::storage::allocator::PageAllocator;
     use crate::storage::buffer_pool::{BufferPool, MIN_BUFFER_POOL_FRAMES};
     use crate::storage::page::{DEFAULT_PAGE_SIZE, PageId};

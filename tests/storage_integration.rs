@@ -3,8 +3,8 @@
 //! These tests exercise the full persistence path: create file → write data →
 //! close → reopen → verify.
 
-use graph_db::hal::OpenableBackend;
-use graph_db::hal_std::{FileBackend, FileBackendConfig};
+use graph_db::backend::OpenableBackend;
+use graph_db::backend_std::{FileBackend, FileBackendConfig};
 use graph_db::storage::page::DEFAULT_PAGE_SIZE;
 use graph_db::storage::snapshot::SnapshotRoots;
 use graph_db::storage::{StorageEngine, StorageEngineConfig};

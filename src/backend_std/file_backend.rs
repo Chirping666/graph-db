@@ -3,10 +3,10 @@
 use std::fs::{File, OpenOptions};
 use std::path::PathBuf;
 
-use crate::hal;
-use crate::hal::error::{StorageError, StorageErrorKind, StorageErrorType};
-use crate::hal::lifecycle::{LockableBackend, OpenableBackend};
-use crate::hal::traits::{ReadAt, WriteAt};
+use crate::backend;
+use crate::backend::error::{StorageError, StorageErrorKind, StorageErrorType};
+use crate::backend::lifecycle::{LockableBackend, OpenableBackend};
+use crate::backend::traits::{ReadAt, WriteAt};
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -111,9 +111,9 @@ impl From<std::io::Error> for FileError {
 /// # Thread safety
 ///
 /// [`ReadAt::read_at`] takes `&self`, enabling concurrent reads via the
-/// underlying `pread` call. [`WriteAt`] and [`hal::Sync`] take `&mut self`,
-/// ensuring exclusive write access at the Rust type level. The storage
-/// engine manages concurrency via `RwLock`.
+/// underlying `pread` call. [`WriteAt`] and [`Durability`](backend::Durability)
+/// take `&mut self`, ensuring exclusive write access at the Rust type level.
+/// The storage engine manages concurrency via `RwLock`.
 pub struct FileBackend {
     file: File,
     read_only: bool,
@@ -228,7 +228,7 @@ impl WriteAt for FileBackend {
     }
 }
 
-impl hal::Sync for FileBackend {
+impl backend::Durability for FileBackend {
     fn sync_data(&mut self) -> Result<(), FileError> {
         if self.read_only {
             return Ok(());
@@ -467,8 +467,7 @@ impl LockableBackend for FileBackend {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hal::StorageError as HalStorageError;
-    use crate::hal::Sync as HalSync;
+    use crate::backend::Durability;
 
     // === FileError tests ===
 
@@ -592,7 +591,7 @@ mod tests {
             let mut fb = FileBackend::create(config.clone()).unwrap();
             fb.set_len(100).unwrap();
             fb.write_at(0, b"data").unwrap();
-            HalSync::sync_data(&mut fb).unwrap();
+            Durability::sync_data(&mut fb).unwrap();
         }
 
         // Open read-only
@@ -616,8 +615,8 @@ mod tests {
         assert_eq!(err.kind(), StorageErrorKind::ReadOnly);
 
         // Sync is no-op in read-only mode
-        HalSync::sync_data(&mut fb).unwrap();
-        HalSync::sync_all(&mut fb).unwrap();
+        Durability::sync_data(&mut fb).unwrap();
+        Durability::sync_all(&mut fb).unwrap();
     }
 
     #[test]
@@ -626,9 +625,9 @@ mod tests {
         let mut fb = FileBackend::create(temp_config(&dir)).unwrap();
         fb.set_len(100).unwrap();
         fb.write_at(0, b"test").unwrap();
-        HalSync::sync_data(&mut fb).unwrap();
+        Durability::sync_data(&mut fb).unwrap();
         fb.write_at(50, b"more").unwrap();
-        HalSync::sync_all(&mut fb).unwrap();
+        Durability::sync_all(&mut fb).unwrap();
     }
 
     // === Open/create/open_or_create lifecycle ===
@@ -715,7 +714,7 @@ mod tests {
             let mut fb = FileBackend::create(config.clone()).unwrap();
             fb.set_len(100).unwrap();
             fb.write_at(10, b"persistent").unwrap();
-            HalSync::sync_data(&mut fb).unwrap();
+            Durability::sync_data(&mut fb).unwrap();
         }
 
         // Reopen and verify

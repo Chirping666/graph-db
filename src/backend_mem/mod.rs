@@ -4,10 +4,10 @@
 //! `Vec<u8>`. Useful for testing, ephemeral databases, and `no_std + alloc`
 //! environments without a filesystem.
 //!
-//! `MemoryBackend` implements the same HAL traits ([`ReadAt`](crate::hal::ReadAt),
-//! [`WriteAt`](crate::hal::WriteAt), [`hal::Sync`](crate::hal::Sync),
-//! [`StorageBackend`](crate::hal::StorageBackend)) as
-//! [`FileBackend`](crate::hal_std::FileBackend), so the entire storage engine
+//! `MemoryBackend` implements the same backend traits ([`ReadAt`](crate::backend::ReadAt),
+//! [`WriteAt`](crate::backend::WriteAt), [`Durability`](crate::backend::Durability),
+//! [`StorageBackend`](crate::backend::StorageBackend)) as
+//! [`FileBackend`](crate::backend_std::FileBackend), so the entire storage engine
 //! operates identically regardless of which backend is in use.
 //!
 //! # Optional snapshot support

@@ -7,9 +7,9 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::error::StorageError;
-use crate::hal::{ReadAt, StorageBackend};
+use crate::backend::{ReadAt, StorageBackend};
 
-use super::map_hal_err;
+use super::map_backend_err;
 use super::page::leaf::LeafPage;
 use super::page::{IDENTITY_HEADER_SIZE, PageId, SUPERBLOCK_USED_SIZE};
 
@@ -416,10 +416,10 @@ pub fn select_active_superblock<B: ReadAt>(
 
     backend
         .read_at(0, &mut buf_a)
-        .map_err(map_hal_err)?;
+        .map_err(map_backend_err)?;
     backend
         .read_at(page_size as u64, &mut buf_b)
-        .map_err(map_hal_err)?;
+        .map_err(map_backend_err)?;
 
     let valid_a = Superblock::validate(&buf_a).is_ok();
     let valid_b = Superblock::validate(&buf_b).is_ok();
@@ -484,15 +484,15 @@ pub fn create_database_file<B: StorageBackend>(
 
     // Write to backend
     let total_size = page_size as u64 * 3;
-    backend.set_len(total_size).map_err(map_hal_err)?;
-    backend.write_at(0, &sb_page_a).map_err(map_hal_err)?;
+    backend.set_len(total_size).map_err(map_backend_err)?;
+    backend.write_at(0, &sb_page_a).map_err(map_backend_err)?;
     backend
         .write_at(page_size as u64, &sb_page_b)
-        .map_err(map_hal_err)?;
+        .map_err(map_backend_err)?;
     backend
         .write_at(page_size as u64 * 2, &schema_root_page)
-        .map_err(map_hal_err)?;
-    backend.sync_all().map_err(map_hal_err)?;
+        .map_err(map_backend_err)?;
+    backend.sync_all().map_err(map_backend_err)?;
 
     Ok(superblock)
 }
@@ -511,7 +511,7 @@ pub fn open_database_file<B: ReadAt>(
 ) -> Result<Superblock, StorageError> {
     // Read and validate identity header
     let mut hdr_buf = [0u8; IDENTITY_HEADER_SIZE];
-    backend.read_at(0, &mut hdr_buf).map_err(map_hal_err)?;
+    backend.read_at(0, &mut hdr_buf).map_err(map_backend_err)?;
     let identity = FileIdentityHeader::deserialize(&hdr_buf)?;
     identity.validate_compatible()?;
 
@@ -532,7 +532,7 @@ pub fn open_database_file<B: ReadAt>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hal::WriteAt;
+    use crate::backend::WriteAt;
     use crate::storage::page::DEFAULT_PAGE_SIZE;
     use crate::storage::test_utils::TestBackend;
 
