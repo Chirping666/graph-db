@@ -463,6 +463,15 @@ impl<B: StorageBackend> Database<B> {
                 .collect(),
         }
     }
+
+    /// Invokes a closure with a shared reference to the underlying storage backend.
+    ///
+    /// The storage lock is held for the duration of the closure. Avoid
+    /// long-running or blocking operations inside `f`.
+    pub fn with_backend<R>(&self, f: impl FnOnce(&B) -> R) -> R {
+        let engine = self.inner.storage.lock();
+        f(engine.backend())
+    }
 }
 
 #[cfg(test)]

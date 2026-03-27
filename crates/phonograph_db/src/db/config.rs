@@ -180,15 +180,19 @@ mod tests {
 
     #[test]
     fn validate_catches_invalid_page_size() {
-        let mut config = DatabaseConfig::default();
-        config.page_size = 1000;
+        let config = DatabaseConfig {
+            page_size: 1000,
+            ..DatabaseConfig::default()
+        };
         assert!(config.validate().is_err());
     }
 
     #[test]
     fn validate_catches_small_page_size() {
-        let mut config = DatabaseConfig::default();
-        config.page_size = 256;
+        let config = DatabaseConfig {
+            page_size: 256,
+            ..DatabaseConfig::default()
+        };
         assert!(config.validate().is_err());
     }
 

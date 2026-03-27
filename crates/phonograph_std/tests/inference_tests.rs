@@ -4,18 +4,18 @@
 //! dispatch, materialized dispatch, caching, provenance queries, rule chaining,
 //! constraint interaction, and provenance persistence.
 
-use graph_db::constraint::{
+use phonograph_std::constraint::{
     ChangeSet, ConstraintValidator, ConstraintViolation, ViolationSubject,
 };
-use graph_db::db::builders::{NodeBuilder, TypeDefinitionBuilder};
-use graph_db::db::config::DatabaseConfig;
-use graph_db::db::database::Database;
-use graph_db::error::{Error, InferenceError};
-use graph_db::inference::{
+use phonograph_std::db::builders::{NodeBuilder, TypeDefinitionBuilder};
+use phonograph_std::error::Error;
+use phonograph_std::InferenceError;
+use phonograph_std::inference::{
     InferenceMode, InferenceResult, InferenceRule, InferredFact,
 };
-use graph_db::schema::{GraphView, PropertyKeyRegistryView, TypeRegistryView};
-use graph_db::types::{EdgeId, NodeId, PropertyKeyId, TypeId, Value};
+use phonograph_std::schema::{GraphView, PropertyKeyRegistryView, TypeRegistryView};
+use phonograph_std::types::{EdgeId, NodeId, PropertyKeyId, TypeId, Value};
+use phonograph_std::Database;
 
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -23,7 +23,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 fn open_temp_db() -> (Database, tempfile::TempDir) {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("test.db");
-    let db = Database::open(DatabaseConfig::persistent(&path)).unwrap();
+    let db = phonograph_std::open(&path).unwrap();
     (db, dir)
 }
 
@@ -126,7 +126,7 @@ impl InferenceRule for ChainingTestRule {
             facts.push(InferredFact::NewNode {
                 type_labels: vec![self.node_type_id],
                 properties: {
-                    let mut props = graph_db::types::PropertyMap::new();
+                    let mut props = phonograph_std::types::PropertyMap::new();
                     props.insert(
                         self.summary_key,
                         Value::String(format!("summary_of_{}", node.id.0)),
@@ -576,7 +576,7 @@ fn provenance_persists_across_sessions() {
     let src;
 
     {
-        let db = Database::open(DatabaseConfig::persistent(&path)).unwrap();
+        let db = phonograph_std::open(&path).unwrap();
         let mut wtx = db.write_txn().unwrap();
 
         let node_type = wtx
@@ -625,7 +625,7 @@ fn provenance_persists_across_sessions() {
     }
 
     // Reopen without re-registering the rule.
-    let db2 = Database::open(DatabaseConfig::persistent(&path)).unwrap();
+    let db2 = phonograph_std::open(&path).unwrap();
     let rtx = db2.read_txn().unwrap();
     assert!(rtx.is_inferred_edge(inferred_edge_id).unwrap());
     let prov = rtx.edge_provenance(inferred_edge_id).unwrap().unwrap();
@@ -736,7 +736,7 @@ fn no_automatic_inference_on_reopen() {
     let path = dir.path().join("test.db");
 
     {
-        let db = Database::open(DatabaseConfig::persistent(&path)).unwrap();
+        let db = phonograph_std::open(&path).unwrap();
         let mut wtx = db.write_txn().unwrap();
         let nt = wtx
             .register_type(TypeDefinitionBuilder::node_type("N").build())
@@ -774,7 +774,7 @@ fn no_automatic_inference_on_reopen() {
     }
 
     // Reopen — no inference should run automatically.
-    let db2 = Database::open(DatabaseConfig::persistent(&path)).unwrap();
+    let db2 = phonograph_std::open(&path).unwrap();
     let rtx = db2.read_txn().unwrap();
     assert_eq!(rtx.edge_count().unwrap(), 0);
 }
@@ -806,7 +806,7 @@ impl ConstraintValidator for TypeCheckValidator {
     ) -> Vec<ConstraintViolation> {
         let mut violations = Vec::new();
         for change in changes.edge_changes() {
-            if let graph_db::constraint::EdgeChange::Inserted(edge) = change {
+            if let phonograph_std::constraint::EdgeChange::Inserted(edge) = change {
                 // Check that source has the required type.
                 if let Some(src) = graph.get_node(edge.source) {
                     if !src.type_labels.contains(&self.required_node_type) {

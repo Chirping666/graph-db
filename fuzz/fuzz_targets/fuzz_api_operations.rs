@@ -9,13 +9,11 @@
 #![no_main]
 use libfuzzer_sys::fuzz_target;
 
-use graph_db::db::builders::{EdgeBuilder, NodeBuilder, TypeDefinitionBuilder};
-use graph_db::db::config::DatabaseConfig;
-use graph_db::db::database::Database;
-use graph_db::types::{EdgeId, NodeId, Value};
+use phonograph_std::db::builders::{EdgeBuilder, NodeBuilder, TypeDefinitionBuilder};
+use phonograph_std::types::{EdgeId, NodeId, Value};
 
 fuzz_target!(|data: &[u8]| {
-    let db = match Database::open(DatabaseConfig::in_memory()) {
+    let db = match phonograph_std::open_in_memory() {
         Ok(db) => db,
         Err(_) => return,
     };

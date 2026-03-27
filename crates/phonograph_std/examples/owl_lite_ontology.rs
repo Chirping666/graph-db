@@ -1,4 +1,4 @@
-//! Minimal OWL Lite ontology layer on top of graph_db.
+//! Minimal OWL Lite ontology layer on top of phonograph_std.
 //!
 //! Demonstrates how to use the extension system to build an ontology layer:
 //!
@@ -12,16 +12,14 @@
 
 use std::collections::BTreeMap;
 
-use graph_db::constraint::{
+use phonograph_std::constraint::{
     ChangeSet, ConstraintValidator, ConstraintViolation, ViolationSubject,
 };
-use graph_db::db::{
-    Database, DatabaseConfig, EdgeBuilder, NodeBuilder, TypeDefinitionBuilder,
-};
-use graph_db::inference::{InferenceMode, InferenceResult, InferenceRule, InferredFact};
-use graph_db::schema::{GraphView, PropertyKeyRegistryView, TypeRegistryView};
-use graph_db::types::{PropertyKeyId, TypeId, Value};
-use graph_db::Error;
+use phonograph_std::db::{EdgeBuilder, NodeBuilder, TypeDefinitionBuilder};
+use phonograph_std::inference::{InferenceMode, InferenceResult, InferenceRule, InferredFact};
+use phonograph_std::schema::{GraphView, PropertyKeyRegistryView, TypeRegistryView};
+use phonograph_std::types::{PropertyKeyId, TypeId, Value};
+use phonograph_std::error::Error;
 
 // ---------------------------------------------------------------------------
 // Custom constraint validator: MaxCardinalityValidator
@@ -196,7 +194,7 @@ impl InferenceRule for SubclassPropagationRule {
 fn main() -> Result<(), Error> {
     println!("=== OWL Lite Ontology Example ===\n");
 
-    let db = Database::open(DatabaseConfig::in_memory())?;
+    let db = phonograph_std::open_in_memory()?;
 
     // --- Step 1: Register OWL-inspired types ---
     let mut wtx = db.write_txn()?;
@@ -384,8 +382,8 @@ fn main() -> Result<(), Error> {
 
 /// Helper: print the rdf:type edges for an individual, showing class labels.
 fn print_individual_types(
-    rtx: &graph_db::db::ReadTransaction<'_>,
-    individual_id: graph_db::NodeId,
+    rtx: &phonograph_std::ReadTransaction<'_>,
+    individual_id: phonograph_std::NodeId,
     rdf_type_edge: TypeId,
     label_key: PropertyKeyId,
     name: &str,

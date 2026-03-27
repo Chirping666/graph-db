@@ -8,21 +8,20 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use graph_db::constraint::{
+use phonograph_std::constraint::{
     ChangeSet, ConstraintValidator, ConstraintViolation, ViolationSubject,
 };
-use graph_db::db::builders::{EdgeBuilder, NodeBuilder, TypeDefinitionBuilder};
-use graph_db::db::config::DatabaseConfig;
-use graph_db::db::database::Database;
-use graph_db::error::Error;
-use graph_db::backend_mem::MemoryBackend;
-use graph_db::inference::{InferenceMode, InferenceResult, InferenceRule, InferredFact};
-use graph_db::schema::{GraphView, PropertyKeyRegistryView, TypeRegistryView};
-use graph_db::types::{NodeId, PropertyKeyId, TypeId, Value};
+use phonograph_std::db::builders::{EdgeBuilder, NodeBuilder, TypeDefinitionBuilder};
+use phonograph_std::error::Error;
+use phonograph_std::backend_mem::MemoryBackend;
+use phonograph_std::inference::{InferenceMode, InferenceResult, InferenceRule, InferredFact};
+use phonograph_std::schema::{GraphView, PropertyKeyRegistryView, TypeRegistryView};
+use phonograph_std::types::{NodeId, PropertyKeyId, TypeId, Value};
+use phonograph_std::{Database, DatabaseExt};
 
 /// Helper: opens an in-memory database.
 fn open_mem_db() -> Database {
-    Database::open(DatabaseConfig::in_memory()).unwrap()
+    phonograph_std::open_in_memory().unwrap()
 }
 
 // =========================================================================
@@ -624,7 +623,7 @@ fn snapshot_in_memory_round_trip() {
 
     // Open the snapshot file as persistent and verify data
     {
-        let db2 = Database::open(DatabaseConfig::persistent(&snap_path)).unwrap();
+        let db2 = phonograph_std::open(&snap_path).unwrap();
         let rtx = db2.read_txn().unwrap();
         let alice = rtx.get_node(alice_id).unwrap().unwrap();
         assert_eq!(
@@ -685,7 +684,7 @@ fn snapshot_in_memory_to_persistent() {
     }
 
     // Open as persistent database
-    let db2 = Database::open(DatabaseConfig::persistent(&snap_path)).unwrap();
+    let db2 = phonograph_std::open(&snap_path).unwrap();
     let rtx = db2.read_txn().unwrap();
 
     assert_eq!(rtx.node_count().unwrap(), 2);
@@ -722,7 +721,7 @@ fn snapshot_persistent_to_in_memory() {
 
     // Create persistent database
     {
-        let db = Database::open(DatabaseConfig::persistent(&db_path)).unwrap();
+        let db = phonograph_std::open(&db_path).unwrap();
         let mut wtx = db.write_txn().unwrap();
         node_type = wtx
             .register_type(TypeDefinitionBuilder::node_type("Person").build())
@@ -749,7 +748,7 @@ fn snapshot_persistent_to_in_memory() {
     let snap_path = dir.path().join("from_persistent.db");
     loaded.save_to_file(&snap_path).unwrap();
 
-    let db2 = Database::open(DatabaseConfig::persistent(&snap_path)).unwrap();
+    let db2 = phonograph_std::open(&snap_path).unwrap();
     let rtx = db2.read_txn().unwrap();
 
     let alice = rtx.get_node(alice_id).unwrap().unwrap();

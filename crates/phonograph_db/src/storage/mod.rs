@@ -671,7 +671,7 @@ pub(crate) mod test_utils {
 
     impl std::error::Error for TestError {}
 
-    impl crate::backend::error::StorageError for TestError {
+    impl crate::backend::error::BackendError for TestError {
         fn kind(&self) -> StorageErrorKind {
             self.kind
         }
@@ -694,7 +694,7 @@ pub(crate) mod test_utils {
 
         /// Returns a copy of the current backing data.
         pub fn data(&self) -> Vec<u8> {
-            self.data.lock().unwrap().clone()
+            self.data.lock().clone()
         }
     }
 
@@ -704,7 +704,7 @@ pub(crate) mod test_utils {
 
     impl ReadAt for TestBackend {
         fn read_at(&self, offset: u64, buf: &mut [u8]) -> Result<(), TestError> {
-            let data = self.data.lock().unwrap();
+            let data = self.data.lock();
             let start = offset as usize;
             let end = start + buf.len();
             if end > data.len() {
@@ -722,13 +722,13 @@ pub(crate) mod test_utils {
         }
 
         fn len(&self) -> Result<u64, TestError> {
-            Ok(self.data.lock().unwrap().len() as u64)
+            Ok(self.data.lock().len() as u64)
         }
     }
 
     impl WriteAt for TestBackend {
         fn write_at(&mut self, offset: u64, buf: &[u8]) -> Result<(), TestError> {
-            let mut data = self.data.lock().unwrap();
+            let mut data = self.data.lock();
             let start = offset as usize;
             let end = start + buf.len();
             if end > data.len() {
@@ -739,7 +739,7 @@ pub(crate) mod test_utils {
         }
 
         fn set_len(&mut self, new_size: u64) -> Result<(), TestError> {
-            let mut data = self.data.lock().unwrap();
+            let mut data = self.data.lock();
             data.resize(new_size as usize, 0);
             Ok(())
         }

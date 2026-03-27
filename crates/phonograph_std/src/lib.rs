@@ -1,8 +1,12 @@
-//! std-only extensions for the Phonograph graph database.
+//! An embedded graph database with extensible schema and pluggable inference.
 //!
-//! This crate provides the file-backed storage backend (`FileBackend`),
-//! OS-level file locking, and convenience constructors for the most common
-//! database configurations.
+//! `phonograph_std` is the batteries-included entry point for the Phonograph
+//! workspace. It re-exports everything from [`phonograph`] (core types) and
+//! [`phonograph_db`] (database engine), and adds the file-backed storage
+//! backend ([`FileBackend`](backend_std::FileBackend)), OS-level file
+//! locking, and convenience constructors.
+//!
+//! For `no_std` usage, depend on [`phonograph_db`] directly.
 //!
 //! # Quick Start
 //!
@@ -32,6 +36,47 @@ pub use any_backend::{AnyBackend, AnyBackendError};
 /// For `no_std` usage with a specific backend, use
 /// [`phonograph_db::db::Database<B>`](phonograph_db::db::Database) directly.
 pub type Database = phonograph_db::db::Database<AnyBackend>;
+
+/// A read transaction on a [`Database`] backed by [`AnyBackend`].
+pub type ReadTransaction<'db> = phonograph_db::db::ReadTransaction<'db, AnyBackend>;
+
+/// A write transaction on a [`Database`] backed by [`AnyBackend`].
+pub type WriteTransaction<'db> = phonograph_db::db::WriteTransaction<'db, AnyBackend>;
+
+/// Extension methods for [`Database`] backed by [`AnyBackend`].
+pub trait DatabaseExt {
+    /// Saves the in-memory database contents to a file.
+    ///
+    /// The resulting file is a valid database file that can be reopened with
+    /// [`open`]. Only available when the database is using in-memory storage.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the database is not using in-memory storage
+    /// or if the file write fails.
+    fn save_to_file(&self, path: &std::path::Path) -> Result<(), phonograph_db::error::Error>;
+}
+
+impl DatabaseExt for Database {
+    fn save_to_file(&self, path: &std::path::Path) -> Result<(), phonograph_db::error::Error> {
+        self.with_backend(|backend| match backend {
+            AnyBackend::Memory(mem) => {
+                mem.save_to_file(path).map_err(|e| {
+                    phonograph_db::error::Error::Storage(phonograph_db::error::StorageError {
+                        message: format!("snapshot save failed: {e}"),
+                        source: None,
+                    })
+                })
+            }
+            AnyBackend::File(_) => Err(phonograph_db::error::Error::Storage(
+                phonograph_db::error::StorageError {
+                    message: "save_to_file is only available for in-memory databases".into(),
+                    source: None,
+                },
+            )),
+        })
+    }
+}
 
 /// Configuration for opening a file-backed database.
 ///

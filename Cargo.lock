@@ -77,17 +77,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "graph_db"
-version = "0.1.0"
-dependencies = [
- "crc32fast",
- "libc",
- "phonograph",
- "tempfile",
- "xxhash-rust",
-]
-
-[[package]]
 name = "hashbrown"
 version = "0.15.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"

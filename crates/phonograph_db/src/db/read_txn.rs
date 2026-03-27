@@ -32,12 +32,12 @@ use super::write_buffer::WriteBuffer;
 /// # Examples
 ///
 /// ```
-/// use graph_db::db::database::Database;
-/// use graph_db::db::config::DatabaseConfig;
-/// use graph_db::db::builders::{NodeBuilder, TypeDefinitionBuilder};
-/// use graph_db::types::Value;
+/// use phonograph_db::db::Database;
+/// use phonograph_db::db::DatabaseConfig;
+/// use phonograph_db::db::builders::{NodeBuilder, TypeDefinitionBuilder};
+/// use phonograph_db::types::Value;
 ///
-/// let db = Database::open(DatabaseConfig::in_memory()).unwrap();
+/// let db = Database::create(phonograph_db::backend_mem::MemoryBackend::new(), DatabaseConfig::default()).unwrap();
 ///
 /// // Insert some data
 /// let mut wtx = db.write_txn().unwrap();
@@ -138,9 +138,9 @@ impl<'db, B: crate::backend::StorageBackend> ReadTransaction<'db, B> {
     /// # Examples
     ///
     /// ```
-    /// # use graph_db::db::{database::Database, config::DatabaseConfig, builders::*};
-    /// # use graph_db::types::Value;
-    /// # let db = Database::open(DatabaseConfig::in_memory()).unwrap();
+    /// # use phonograph_db::db::{Database, DatabaseConfig, builders::*};
+    /// # use phonograph_db::types::Value;
+    /// # let db = Database::create(phonograph_db::backend_mem::MemoryBackend::new(), DatabaseConfig::default()).unwrap();
     /// # let mut wtx = db.write_txn().unwrap();
     /// # let t = wtx.register_type(TypeDefinitionBuilder::node_type("N").build()).unwrap();
     /// # let k = wtx.get_or_create_property_key("name").unwrap();
@@ -167,8 +167,8 @@ impl<'db, B: crate::backend::StorageBackend> ReadTransaction<'db, B> {
     /// # Examples
     ///
     /// ```
-    /// # use graph_db::db::{database::Database, config::DatabaseConfig, builders::*};
-    /// # let db = Database::open(DatabaseConfig::in_memory()).unwrap();
+    /// # use phonograph_db::db::{Database, DatabaseConfig, builders::*};
+    /// # let db = Database::create(phonograph_db::backend_mem::MemoryBackend::new(), DatabaseConfig::default()).unwrap();
     /// # let mut wtx = db.write_txn().unwrap();
     /// # let nt = wtx.register_type(TypeDefinitionBuilder::node_type("N").build()).unwrap();
     /// # let et = wtx.register_type(TypeDefinitionBuilder::edge_type("E").build()).unwrap();
@@ -221,8 +221,8 @@ impl<'db, B: crate::backend::StorageBackend> ReadTransaction<'db, B> {
     /// # Examples
     ///
     /// ```
-    /// # use graph_db::db::{database::Database, config::DatabaseConfig, builders::*};
-    /// # let db = Database::open(DatabaseConfig::in_memory()).unwrap();
+    /// # use phonograph_db::db::{Database, DatabaseConfig, builders::*};
+    /// # let db = Database::create(phonograph_db::backend_mem::MemoryBackend::new(), DatabaseConfig::default()).unwrap();
     /// # let mut wtx = db.write_txn().unwrap();
     /// # let nt = wtx.register_type(TypeDefinitionBuilder::node_type("N").build()).unwrap();
     /// # let et = wtx.register_type(TypeDefinitionBuilder::edge_type("E").build()).unwrap();
@@ -321,8 +321,8 @@ impl<'db, B: crate::backend::StorageBackend> ReadTransaction<'db, B> {
     /// # Examples
     ///
     /// ```
-    /// # use graph_db::db::{database::Database, config::DatabaseConfig, builders::*};
-    /// # let db = Database::open(DatabaseConfig::in_memory()).unwrap();
+    /// # use phonograph_db::db::{Database, DatabaseConfig, builders::*};
+    /// # let db = Database::create(phonograph_db::backend_mem::MemoryBackend::new(), DatabaseConfig::default()).unwrap();
     /// # let mut wtx = db.write_txn().unwrap();
     /// # let t = wtx.register_type(TypeDefinitionBuilder::node_type("Person").build()).unwrap();
     /// # wtx.insert_node(NodeBuilder::new().type_label(t).build()).unwrap();
@@ -429,8 +429,8 @@ impl<'db, B: crate::backend::StorageBackend> ReadTransaction<'db, B> {
     /// # Examples
     ///
     /// ```
-    /// # use graph_db::db::{database::Database, config::DatabaseConfig};
-    /// let db = Database::open(DatabaseConfig::in_memory()).unwrap();
+    /// # use phonograph_db::db::{Database, DatabaseConfig};
+    /// let db = Database::create(phonograph_db::backend_mem::MemoryBackend::new(), DatabaseConfig::default()).unwrap();
     /// let rtx = db.read_txn().unwrap();
     /// assert_eq!(rtx.node_count().unwrap(), 0);
     /// ```
@@ -500,8 +500,8 @@ impl<'db, B: crate::backend::StorageBackend> ReadTransaction<'db, B> {
     /// # Examples
     ///
     /// ```
-    /// # use graph_db::db::{database::Database, config::DatabaseConfig, builders::*};
-    /// # let db = Database::open(DatabaseConfig::in_memory()).unwrap();
+    /// # use phonograph_db::db::{Database, DatabaseConfig, builders::*};
+    /// # let db = Database::create(phonograph_db::backend_mem::MemoryBackend::new(), DatabaseConfig::default()).unwrap();
     /// # let mut wtx = db.write_txn().unwrap();
     /// # let t = wtx.register_type(TypeDefinitionBuilder::node_type("Person").build()).unwrap();
     /// # wtx.commit().unwrap();
@@ -519,8 +519,8 @@ impl<'db, B: crate::backend::StorageBackend> ReadTransaction<'db, B> {
     /// # Examples
     ///
     /// ```
-    /// # use graph_db::db::{database::Database, config::DatabaseConfig};
-    /// # let db = Database::open(DatabaseConfig::in_memory()).unwrap();
+    /// # use phonograph_db::db::{Database, DatabaseConfig};
+    /// # let db = Database::create(phonograph_db::backend_mem::MemoryBackend::new(), DatabaseConfig::default()).unwrap();
     /// # let mut wtx = db.write_txn().unwrap();
     /// # let k = wtx.get_or_create_property_key("name").unwrap();
     /// # wtx.commit().unwrap();

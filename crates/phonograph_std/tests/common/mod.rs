@@ -1,15 +1,14 @@
-//! Shared test helpers for integration tests (Task 28).
+//! Shared test helpers for integration tests.
 
-use graph_db::constraint::{
+use phonograph_std::constraint::{
     ChangeSet, ConstraintValidator, ConstraintViolation, ViolationSubject,
 };
-use graph_db::db::builders::{EdgeBuilder, NodeBuilder, TypeDefinitionBuilder};
-use graph_db::db::config::DatabaseConfig;
-use graph_db::db::database::Database;
-use graph_db::error::Error;
-use graph_db::inference::{InferenceResult, InferenceRule, InferredFact};
-use graph_db::schema::{GraphView, PropertyKeyRegistryView, TypeRegistryView};
-use graph_db::types::{EdgeId, NodeId, PropertyKeyId, TypeId, Value};
+use phonograph_std::db::builders::{EdgeBuilder, NodeBuilder, TypeDefinitionBuilder};
+use phonograph_std::error::Error;
+use phonograph_std::inference::{InferenceResult, InferenceRule, InferredFact};
+use phonograph_std::schema::{GraphView, PropertyKeyRegistryView, TypeRegistryView};
+use phonograph_std::types::{EdgeId, NodeId, PropertyKeyId, TypeId, Value};
+use phonograph_std::Database;
 
 // ---------------------------------------------------------------------------
 // Database constructors
@@ -19,13 +18,13 @@ use graph_db::types::{EdgeId, NodeId, PropertyKeyId, TypeId, Value};
 pub fn open_temp_db() -> (Database, tempfile::TempDir) {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("test.db");
-    let db = Database::open(DatabaseConfig::persistent(&path)).unwrap();
+    let db = phonograph_std::open(&path).unwrap();
     (db, dir)
 }
 
 /// Opens an in-memory database.
 pub fn open_mem_db() -> Database {
-    Database::open(DatabaseConfig::in_memory()).unwrap()
+    phonograph_std::open_in_memory().unwrap()
 }
 
 // ---------------------------------------------------------------------------

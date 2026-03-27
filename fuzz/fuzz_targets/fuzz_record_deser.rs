@@ -9,8 +9,8 @@
 #![no_main]
 use libfuzzer_sys::fuzz_target;
 
-use graph_db::storage::serialization;
-use graph_db::types::TypeId;
+use phonograph_std::storage::serialization;
+use phonograph_std::types::TypeId;
 
 fuzz_target!(|data: &[u8]| {
     // Deserialize a Value from arbitrary bytes.

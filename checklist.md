@@ -248,7 +248,7 @@ swaps sync primitives, and generifies `Database<B>`.
 
 > **Reference:** `030-workspace-redesign.md` §14 Phase 4
 
-- [ ] **4.1 — Decide: facade or delete.** Confirm choice with the user before proceeding.
+- [x] **4.1 — Decide: facade or delete.** Confirm choice with the user before proceeding.
   - **Option A (facade):** Replace `graph_db`'s `src/lib.rs` with a single re-export:
     `pub use phonograph_std::*;`. Update `graph_db`'s `Cargo.toml` to depend only on
     `phonograph_std`. Remove `crc32fast`, `xxhash-rust`, `libc` — those now belong to
@@ -257,14 +257,14 @@ swaps sync primitives, and generifies `Database<B>`.
     `examples/`, `fuzz/`, `README.md`, `CHANGELOG.md`, and licenses to the workspace root
     (or into `phonograph_std`). Update the workspace `Cargo.toml`.
 
-- [ ] **4.2 — Migrate tests and examples.**
+- [x] **4.2 — Migrate tests and examples.**
   - Update all `use graph_db::` imports in `tests/` and `examples/` to use the new
     crate paths (`use phonograph_std::*` if using the facade, or direct crate imports).
   - Ensure doc-tests in all three crates compile.
   - Move integration tests to the appropriate crate or to the workspace `tests/` root.
   - **Verify:** `cargo test --workspace` passes.
 
-- [ ] **4.3 — Update workspace-level metadata.**
+- [x] **4.3 — Update workspace-level metadata.**
   - Update root `Cargo.toml` workspace members list.
   - Update `exclude` patterns (now just `"archive/"`, `"fuzz/"`, etc.).
   - Update `repository` URL if still placeholder.
@@ -272,7 +272,7 @@ swaps sync primitives, and generifies `Database<B>`.
 
 ### ▸ Phase 4 Gate
 
-- [ ] **Phase 4 gate — all must pass:**
+- [x] **Phase 4 gate — all must pass:**
   ```bash
   cargo check --workspace
   cargo test --workspace

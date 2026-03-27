@@ -1,5 +1,5 @@
 [package]
-name = "graph_db-fuzz"
+name = "phonograph-fuzz"
 version = "0.0.0"
 publish = false
 edition = "2024"
@@ -10,8 +10,8 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "0.4"
 
-[dependencies.graph_db]
-path = ".."
+[dependencies.phonograph_std]
+path = "../crates/phonograph_std"
 
 # Prevent this from interfering with workspaces
 [workspace]

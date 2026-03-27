@@ -2,15 +2,14 @@
 //!
 //! These tests exercise the full stack from public API through the storage engine.
 
-use graph_db::constraint::{
+use phonograph_std::constraint::{
     ChangeSet, ConstraintValidator, ConstraintViolation, ViolationSubject,
 };
-use graph_db::db::builders::{EdgeBuilder, NodeBuilder, TypeDefinitionBuilder};
-use graph_db::db::config::DatabaseConfig;
-use graph_db::db::database::Database;
-use graph_db::error::Error;
-use graph_db::schema::{GraphView, PropertyKeyRegistryView, TypeRegistryView};
-use graph_db::types::{NodeId, PropertyKeyId, TypeId, Value};
+use phonograph_std::db::builders::{EdgeBuilder, NodeBuilder, TypeDefinitionBuilder};
+use phonograph_std::error::Error;
+use phonograph_std::schema::{GraphView, PropertyKeyRegistryView, TypeRegistryView};
+use phonograph_std::types::{NodeId, PropertyKeyId, TypeId, Value};
+use phonograph_std::Database;
 
 use std::collections::HashSet;
 
@@ -18,7 +17,7 @@ use std::collections::HashSet;
 fn open_temp_db() -> (Database, tempfile::TempDir) {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("test.db");
-    let db = Database::open(DatabaseConfig::persistent(&path)).unwrap();
+    let db = phonograph_std::open(&path).unwrap();
     (db, dir)
 }
 
@@ -595,7 +594,7 @@ fn persistence_round_trip() {
 
     // Create and populate
     {
-        let db = Database::open(DatabaseConfig::persistent(&path)).unwrap();
+        let db = phonograph_std::open(&path).unwrap();
         let mut wtx = db.write_txn().unwrap();
         node_type = wtx.register_type(TypeDefinitionBuilder::node_type("Person").build()).unwrap();
         name_key = wtx.get_or_create_property_key("name").unwrap();
@@ -611,7 +610,7 @@ fn persistence_round_trip() {
 
     // Reopen and verify
     {
-        let db = Database::open(DatabaseConfig::persistent(&path)).unwrap();
+        let db = phonograph_std::open(&path).unwrap();
         let rtx = db.read_txn().unwrap();
 
         let alice = rtx.get_node(alice_id).unwrap().unwrap();

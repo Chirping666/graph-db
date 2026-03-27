@@ -237,7 +237,7 @@ mod tests {
     // Send/Sync assertions on Database.
     fn _assert_database_send_sync<T: Send + Sync>() {}
     fn _verify_database_send_sync() {
-        _assert_database_send_sync::<super::super::Database>();
+        _assert_database_send_sync::<super::super::Database<crate::backend_mem::MemoryBackend>>();
     }
 
     // !Send, !Sync on transactions (compile-time: these should NOT compile

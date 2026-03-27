@@ -3,10 +3,12 @@ name = "phonograph_std"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.82"
-description = "std-only extensions for phonograph: file backend, OS locking, and convenience Database type"
-keywords = ["graph-database", "file-backend", "embedded-database"]
-categories = ["database-implementations"]
+description = "An embedded graph database with extensible schema, pluggable constraint validation, and pluggable inference hooks"
+keywords = ["graph-database", "embedded-database", "property-graph", "ontology", "knowledge-graph"]
+categories = ["database-implementations", "data-structures"]
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/Chirping666/graph-db"
+readme = "../../README.md"
 
 [dependencies]
 phonograph = { path = "../phonograph" }

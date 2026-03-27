@@ -1,16 +1,15 @@
-//! Basic usage of the graph_db crate.
+//! Basic usage of the phonograph_std crate.
 //!
 //! Demonstrates: opening a database, registering types and property keys,
 //! inserting nodes and edges, querying by type, and traversing edges.
 
-use graph_db::db::{
-    Database, DatabaseConfig, EdgeBuilder, NodeBuilder, TypeDefinitionBuilder,
-};
-use graph_db::{Error, Value};
+use phonograph_std::db::{EdgeBuilder, NodeBuilder, TypeDefinitionBuilder};
+use phonograph_std::error::Error;
+use phonograph_std::types::Value;
 
 fn main() -> Result<(), Error> {
     // --- 1. Open an in-memory database ---
-    let db = Database::open(DatabaseConfig::in_memory())?;
+    let db = phonograph_std::open_in_memory()?;
 
     // --- 2. Register types and property keys ---
     // We create a small schema: Entity (base), Person (extends Entity),

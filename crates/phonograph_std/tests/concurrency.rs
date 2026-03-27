@@ -6,10 +6,9 @@
 use std::sync::Arc;
 use std::thread;
 
-use graph_db::db::builders::{EdgeBuilder, NodeBuilder, TypeDefinitionBuilder};
-use graph_db::db::config::DatabaseConfig;
-use graph_db::db::database::Database;
-use graph_db::types::{NodeId, Value};
+use phonograph_std::db::builders::{EdgeBuilder, NodeBuilder, TypeDefinitionBuilder};
+use phonograph_std::types::{NodeId, Value};
+use phonograph_std::Database;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -17,7 +16,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 fn open_temp_db() -> (Database, tempfile::TempDir) {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("test.db");
-    let db = Database::open(DatabaseConfig::persistent(&path)).unwrap();
+    let db = phonograph_std::open(&path).unwrap();
     (db, dir)
 }
 

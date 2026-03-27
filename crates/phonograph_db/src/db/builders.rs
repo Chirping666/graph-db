@@ -17,8 +17,8 @@ use phonograph::types::{
 /// # Examples
 ///
 /// ```
-/// use graph_db::db::builders::NodeBuilder;
-/// use graph_db::types::{TypeId, PropertyKeyId, Value};
+/// use phonograph_db::db::builders::NodeBuilder;
+/// use phonograph_db::types::{TypeId, PropertyKeyId, Value};
 ///
 /// let node = NodeBuilder::new()
 ///     .type_label(TypeId(1))
@@ -94,8 +94,8 @@ impl Default for NodeBuilder {
 /// # Examples
 ///
 /// ```
-/// use graph_db::db::builders::EdgeBuilder;
-/// use graph_db::types::{NodeId, TypeId};
+/// use phonograph_db::db::builders::EdgeBuilder;
+/// use phonograph_db::types::{NodeId, TypeId};
 ///
 /// let edge = EdgeBuilder::new(NodeId(1), NodeId(2))
 ///     .type_label(TypeId(10))
@@ -161,7 +161,7 @@ impl EdgeBuilder {
 /// # Examples
 ///
 /// ```
-/// use graph_db::db::builders::TypeDefinitionBuilder;
+/// use phonograph_db::db::builders::TypeDefinitionBuilder;
 ///
 /// let td = TypeDefinitionBuilder::node_type("Person")
 ///     .open()

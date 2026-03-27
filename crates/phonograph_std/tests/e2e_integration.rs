@@ -7,12 +7,12 @@ mod common;
 
 use std::collections::HashSet;
 
-use graph_db::db::builders::{EdgeBuilder, NodeBuilder, TypeDefinitionBuilder};
-use graph_db::db::config::DatabaseConfig;
-use graph_db::db::database::Database;
-use graph_db::error::{Error, NotFoundError, SchemaError};
-use graph_db::inference::InferenceMode;
-use graph_db::types::{NodeId, EdgeId, Value};
+use phonograph_std::db::builders::{EdgeBuilder, NodeBuilder, TypeDefinitionBuilder};
+use phonograph_std::error::Error;
+use phonograph_std::{NotFoundError, SchemaError};
+use phonograph_std::inference::InferenceMode;
+use phonograph_std::types::{NodeId, EdgeId, Value};
+use phonograph_std::Database;
 
 use common::{
     build_test_graph, open_mem_db, open_temp_db, InverseEdgeRule, RequiredPropertyValidator,
@@ -142,13 +142,13 @@ fn e2e_persistence_full_round_trip() {
 
     // Phase 1: Create and populate
     {
-        let db = Database::open(DatabaseConfig::persistent(&path)).unwrap();
+        let db = phonograph_std::open(&path).unwrap();
         g = build_test_graph(&db).unwrap();
     }
 
     // Phase 2: Reopen and verify all data survives
     {
-        let db = Database::open(DatabaseConfig::persistent(&path)).unwrap();
+        let db = phonograph_std::open(&path).unwrap();
         let rtx = db.read_txn().unwrap();
 
         assert_eq!(rtx.node_count().unwrap(), 8);
@@ -212,7 +212,7 @@ fn e2e_persistence_full_round_trip() {
 
     // Phase 3: Second reopen to verify write-after-reopen persists
     {
-        let db = Database::open(DatabaseConfig::persistent(&path)).unwrap();
+        let db = phonograph_std::open(&path).unwrap();
         let rtx = db.read_txn().unwrap();
         assert_eq!(rtx.node_count().unwrap(), 9);
     }
@@ -237,7 +237,7 @@ fn e2e_extension_system_round_trip() {
 
     // --- Phase A: Setup, constraint validation, inference, persistence ---
     {
-        let db = Database::open(DatabaseConfig::persistent(&path)).unwrap();
+        let db = phonograph_std::open(&path).unwrap();
 
         // Step 1-2: Register types and property keys
         {
@@ -373,7 +373,7 @@ fn e2e_extension_system_round_trip() {
 
     // --- Phase B: Reopen, re-register extensions, verify data ---
     {
-        let db = Database::open(DatabaseConfig::persistent(&path)).unwrap();
+        let db = phonograph_std::open(&path).unwrap();
 
         // NOTE: Extension name persistence requires recording
         // SchemaChange::ExtensionNameRegistered in a write transaction.
