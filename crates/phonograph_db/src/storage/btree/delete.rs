@@ -86,7 +86,7 @@ impl BTree {
 
         let leaf_data = LeafPage::build(
             new_leaf_id, txn_id, leaf.cells(), old_next, old_prev, self.config.page_size,
-        );
+        )?;
         let frame = pool.new_page(new_leaf_id, backend)?;
         pool.get_page_data_mut(frame)[..self.config.page_size]
             .copy_from_slice(&leaf_data);

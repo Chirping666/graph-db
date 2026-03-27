@@ -196,9 +196,9 @@ impl LeafPage {
     ///
     /// Returns a `Vec<u8>` of exactly `page_size` bytes.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics if the cells do not fit in the page.
+    /// Returns an error if the cells do not fit in the page.
     pub fn build(
         page_id: PageId,
         txn_id: u64,
@@ -206,7 +206,7 @@ impl LeafPage {
         next_leaf: PageId,
         prev_leaf: PageId,
         page_size: usize,
-    ) -> Vec<u8> {
+    ) -> Result<Vec<u8>, StorageError> {
         let mut page = vec![0u8; page_size];
 
         // Write subheader
@@ -263,10 +263,15 @@ impl LeafPage {
 
         // Sanity check
         let ptrs_end = CELL_PTRS_OFFSET + cells.len() * 2;
-        assert!(
-            ptrs_end <= write_pos,
-            "leaf page overflow: ptrs_end={ptrs_end}, content_start={write_pos}"
-        );
+        if ptrs_end > write_pos {
+            return Err(StorageError {
+                message: format!(
+                    "leaf page overflow: ptrs_end={ptrs_end}, content_start={write_pos}"
+                ),
+                #[cfg(feature = "std")]
+                source: None,
+            });
+        }
 
         // Write header
         let header = CommonPageHeader {
@@ -280,7 +285,7 @@ impl LeafPage {
         let checksum = CommonPageHeader::compute_checksum(&page);
         page[20..24].copy_from_slice(&checksum.to_le_bytes());
 
-        page
+        Ok(page)
     }
 
     /// Binary-searches for an exact key match among the cells.
@@ -393,7 +398,7 @@ mod tests {
             PageId(4),
             PageId(2),
             DEFAULT_PAGE_SIZE,
-        );
+        ).unwrap();
 
         assert_eq!(page_data.len(), DEFAULT_PAGE_SIZE);
         CommonPageHeader::validate_checksum(&page_data).unwrap();
@@ -417,7 +422,7 @@ mod tests {
         ];
         let page_data = LeafPage::build(
             PageId(3), 1, &cells, PageId::NULL, PageId::NULL, DEFAULT_PAGE_SIZE,
-        );
+        ).unwrap();
         let page = LeafPage::parse(&page_data, DEFAULT_PAGE_SIZE).unwrap();
 
         let result = page.search(&[0x00, 0x05]);
@@ -436,7 +441,7 @@ mod tests {
         ];
         let page_data = LeafPage::build(
             PageId(3), 1, &cells, PageId::NULL, PageId::NULL, DEFAULT_PAGE_SIZE,
-        );
+        ).unwrap();
         let page = LeafPage::parse(&page_data, DEFAULT_PAGE_SIZE).unwrap();
         assert!(page.search(&[0x00, 0x03]).is_none());
     }
@@ -448,7 +453,7 @@ mod tests {
             .collect();
         let page_data = LeafPage::build(
             PageId(3), 1, &cells, PageId::NULL, PageId::NULL, DEFAULT_PAGE_SIZE,
-        );
+        ).unwrap();
         let page = LeafPage::parse(&page_data, DEFAULT_PAGE_SIZE).unwrap();
 
         let range = page.search_range(&[3], &[7]);
@@ -463,7 +468,7 @@ mod tests {
         ];
         let page_data = LeafPage::build(
             PageId(3), 1, &cells, PageId::NULL, PageId::NULL, DEFAULT_PAGE_SIZE,
-        );
+        ).unwrap();
         let mut page = LeafPage::parse(&page_data, DEFAULT_PAGE_SIZE).unwrap();
 
         assert!(page.insert_cell(inline_cell(&[0x02], b"b"), DEFAULT_PAGE_SIZE));
@@ -482,7 +487,7 @@ mod tests {
         ];
         let page_data = LeafPage::build(
             PageId(3), 1, &cells, PageId::NULL, PageId::NULL, DEFAULT_PAGE_SIZE,
-        );
+        ).unwrap();
         let mut page = LeafPage::parse(&page_data, DEFAULT_PAGE_SIZE).unwrap();
 
         let deleted = page.delete_cell(&[0x02]);
@@ -498,7 +503,7 @@ mod tests {
             .collect();
         let page_data = LeafPage::build(
             PageId(3), 1, &cells, PageId::NULL, PageId::NULL, DEFAULT_PAGE_SIZE,
-        );
+        ).unwrap();
         let page = LeafPage::parse(&page_data, DEFAULT_PAGE_SIZE).unwrap();
 
         let (left, right, split_key) = page.split();
@@ -522,7 +527,7 @@ mod tests {
         ];
         let page_data = LeafPage::build(
             PageId(3), 1, &cells, PageId::NULL, PageId::NULL, DEFAULT_PAGE_SIZE,
-        );
+        ).unwrap();
         let parsed = LeafPage::parse(&page_data, DEFAULT_PAGE_SIZE).unwrap();
 
         assert_eq!(parsed.cells()[1].key, vec![0x02]);
@@ -542,7 +547,7 @@ mod tests {
     fn next_prev_leaf_serialized() {
         let page_data = LeafPage::build(
             PageId(5), 1, &[], PageId(6), PageId(4), DEFAULT_PAGE_SIZE,
-        );
+        ).unwrap();
         let parsed = LeafPage::parse(&page_data, DEFAULT_PAGE_SIZE).unwrap();
         assert_eq!(parsed.next_leaf, PageId(6));
         assert_eq!(parsed.prev_leaf, PageId(4));
@@ -553,7 +558,7 @@ mod tests {
         let cells = vec![inline_cell(&[0xAB], b"X")];
         let page_data = LeafPage::build(
             PageId(3), 7, &cells, PageId(10), PageId(2), DEFAULT_PAGE_SIZE,
-        );
+        ).unwrap();
 
         // page_type at offset 8
         assert_eq!(page_data[8], 0x02); // Leaf
@@ -581,7 +586,7 @@ mod tests {
         ];
         let page_data = LeafPage::build(
             PageId(3), 1, &cells, PageId::NULL, PageId::NULL, DEFAULT_PAGE_SIZE,
-        );
+        ).unwrap();
         let parsed = LeafPage::parse(&page_data, DEFAULT_PAGE_SIZE).unwrap();
         for cell in parsed.cells() {
             assert_eq!(cell.value, LeafCellValue::Inline(vec![]));

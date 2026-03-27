@@ -77,7 +77,7 @@ impl BTree {
                 PageId::NULL,
                 PageId::NULL,
                 self.config.page_size,
-            );
+            )?;
             let frame = pool.new_page(new_root_id, backend)?;
             pool.get_page_data_mut(frame)[..self.config.page_size]
                 .copy_from_slice(&page_data);
@@ -124,7 +124,7 @@ impl BTree {
                 old_next,
                 old_prev,
                 self.config.page_size,
-            );
+            )?;
             let frame = pool.new_page(new_leaf_id, backend)?;
             pool.get_page_data_mut(frame)[..self.config.page_size]
                 .copy_from_slice(&leaf_data);
@@ -161,10 +161,10 @@ impl BTree {
 
         let left_data = LeafPage::build(
             left_id, txn_id, &left_cells, right_id, old_prev, self.config.page_size,
-        );
+        )?;
         let right_data = LeafPage::build(
             right_id, txn_id, &right_cells, old_next, left_id, self.config.page_size,
-        );
+        )?;
 
         let left_frame = pool.new_page(left_id, backend)?;
         pool.get_page_data_mut(left_frame)[..self.config.page_size]

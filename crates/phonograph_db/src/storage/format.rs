@@ -493,7 +493,7 @@ pub fn create_database_file<B: StorageBackend>(
         PageId::NULL,
         PageId::NULL,
         page_size,
-    );
+    )?;
 
     // Write to backend
     let total_size = page_size as u64 * 3;

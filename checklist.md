@@ -346,7 +346,7 @@ This phase converts remaining `assert!`/`panic!` in public library methods to pr
 
   **Verify:** `cargo test --workspace` passes.
 
-- [ ] **4.3 — Convert `LeafPage::build` panic.**
+- [x] **4.3 — Convert `LeafPage::build` panic.**
   `LeafPage::build` currently panics via `assert!` if cells don't fit in the page.
   Convert to `Result<Vec<u8>, StorageError>`.
 
