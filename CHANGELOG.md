@@ -28,11 +28,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive error hierarchy (`Error`, `SchemaError`, `StorageError`, `TransactionError`, `InferenceError`, `NotFoundError`)
 - Examples: basic usage, OWL Lite ontology layer demonstration
 
+### Fixed
+
+- Large property values (>1 KB) now correctly use overflow pages instead of panicking
+- Public API methods no longer panic on user-controllable input (return Result instead)
+
 ### Known Limitations
 
 - `nodes_by_property()` performs a full scan (no property value index)
 - Query methods return owned `Vec`s (no streaming iterator API)
 - No batch insert API
 - `write_txn()` blocks indefinitely (no configurable timeout)
-- Large property values (>~1 KB) may cause panics
 - Provenance registry loaded entirely in memory

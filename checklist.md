@@ -393,7 +393,7 @@ This phase converts remaining `assert!`/`panic!` in public library methods to pr
 
 ## Phase 5: Documentation & Metadata Cleanup
 
-- [ ] **5.1 — Update CHANGELOG.md.**
+- [x] **5.1 — Update CHANGELOG.md.**
   - Remove "Large property values (>~1 KB) may cause panics" from Known Limitations.
   - Add a `### Fixed` section under `## [0.1.0]`:
     ```
