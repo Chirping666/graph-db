@@ -1,5 +1,6 @@
 [workspace]
-members = [".", "crates/graph_db_core"]
+members = [".", "crates/phonograph"]
+resolver = "2"
 
 [package]
 name = "graph_db"
@@ -21,7 +22,7 @@ exclude = [
 ]
 
 [dependencies]
-graph_db_core = { path = "crates/graph_db_core" }
+phonograph = { path = "crates/phonograph" }
 crc32fast = "1"
 xxhash-rust = { version = "0.8", features = ["xxh3"] }
 

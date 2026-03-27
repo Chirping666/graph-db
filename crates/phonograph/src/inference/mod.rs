@@ -25,8 +25,8 @@ use crate::types::{EdgeId, NodeId, PropertyKeyId, PropertyMap, TypeId, Value};
 /// # Examples
 ///
 /// ```
-/// use graph_db_core::inference::InferredFact;
-/// use graph_db_core::{NodeId, TypeId, PropertyKeyId, Value};
+/// use phonograph::inference::InferredFact;
+/// use phonograph::{NodeId, TypeId, PropertyKeyId, Value};
 /// use std::collections::BTreeMap;
 ///
 /// let fact = InferredFact::NewEdge {
@@ -101,7 +101,7 @@ pub enum InferredFact {
 /// # Examples
 ///
 /// ```
-/// use graph_db_core::inference::InferenceResult;
+/// use phonograph::inference::InferenceResult;
 ///
 /// let result = InferenceResult {
 ///     facts: vec![],
@@ -127,7 +127,7 @@ pub struct InferenceResult {
 /// # Examples
 ///
 /// ```
-/// use graph_db_core::InferenceMode;
+/// use phonograph::InferenceMode;
 ///
 /// let mode = InferenceMode::Ephemeral;
 /// assert_ne!(mode, InferenceMode::Materialized);
@@ -149,7 +149,7 @@ pub enum InferenceMode {
 /// # Examples
 ///
 /// ```
-/// use graph_db_core::ProvenanceRecord;
+/// use phonograph::ProvenanceRecord;
 ///
 /// let rec = ProvenanceRecord {
 ///     rule_name: "inverse_edge".into(),
@@ -176,8 +176,8 @@ pub struct ProvenanceRecord {
 /// # Examples
 ///
 /// ```
-/// use graph_db_core::inference::InferredEntity;
-/// use graph_db_core::NodeId;
+/// use phonograph::inference::InferredEntity;
+/// use phonograph::NodeId;
 ///
 /// let entity = InferredEntity::Node(NodeId(42));
 /// assert!(matches!(entity, InferredEntity::Node(_)));
@@ -224,7 +224,7 @@ pub enum InferredEntity {
 /// # Examples
 ///
 /// ```
-/// use graph_db_core::MaterializedMapping;
+/// use phonograph::MaterializedMapping;
 ///
 /// let mapping = MaterializedMapping {
 ///     new_node_ids: vec![],

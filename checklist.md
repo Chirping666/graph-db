@@ -14,7 +14,7 @@ After completing each step and passing its verification, mark it done by changin
 
 ## Phase 0: Pre-Migration Snapshot
 
-- [ ] **0.1 — Baseline verification.** Confirm the workspace compiles and all tests pass
+- [x] **0.1 — Baseline verification.** Confirm the workspace compiles and all tests pass
   before making any changes.
   ```bash
   cargo test --workspace
@@ -24,7 +24,7 @@ After completing each step and passing its verification, mark it done by changin
   baseline — every test that passes here must still pass at the end.
   **Verify:** Zero failures. Note the exact counts.
 
-- [ ] **0.2 — Workspace Cargo.toml: switch to explicit resolver.** Add `resolver = "2"`
+- [x] **0.2 — Workspace Cargo.toml: switch to explicit resolver.** Add `resolver = "2"`
   to the workspace `[workspace]` table if not already present. This is required for the
   new three-crate layout.
   **Verify:** `cargo check --workspace` still passes.
@@ -39,7 +39,7 @@ After completing each step and passing its verification, mark it done by changin
 will be removed from `phonograph`. The workspace will not compile again until Phase 2
 restores those modules in `phonograph_db`. Use per-crate checks during this phase.
 
-- [ ] **1.1 — Rename the directory and update crate metadata.**
+- [x] **1.1 — Rename the directory and update crate metadata.**
   - Rename `crates/graph_db_core/` → `crates/phonograph/`.
   - Update `crates/phonograph/Cargo.toml`: set `name = "phonograph"`, update `description`,
     `keywords`, and `categories` per `030` §5.
@@ -50,7 +50,7 @@ restores those modules in `phonograph_db`. Use per-crate checks during this phas
   - Update all `use graph_db_core::` imports in `graph_db/src/` to `use phonograph::`.
   - **Verify:** `cargo check -p phonograph` passes.
 
-- [ ] **1.2 — Remove backend modules from `phonograph`.**
+- [x] **1.2 — Remove backend modules from `phonograph`.**
   - Delete `crates/phonograph/src/backend/` directory.
   - Delete `crates/phonograph/src/backend_mem/` directory.
   - Remove `pub mod backend;` and `pub mod backend_mem;` from `crates/phonograph/src/lib.rs`.
@@ -60,7 +60,7 @@ restores those modules in `phonograph_db`. Use per-crate checks during this phas
     location or recover from git history in Phase 2.
   - **Verify:** `cargo check -p phonograph --no-default-features --features alloc` passes.
 
-- [ ] **1.3 — Strip database-specific error types from `phonograph`.**
+- [x] **1.3 — Strip database-specific error types from `phonograph`.**
   In `crates/phonograph/src/error/mod.rs`:
   - Remove the `StorageError` struct.
   - Remove the `TransactionError` enum.
@@ -70,7 +70,7 @@ restores those modules in `phonograph_db`. Use per-crate checks during this phas
   - Update `lib.rs` re-exports to only export the kept error types.
   - **Verify:** `cargo check -p phonograph --no-default-features --features alloc` passes.
 
-- [ ] **1.4 — Verify `phonograph` is a clean vocabulary crate.**
+- [x] **1.4 — Verify `phonograph` is a clean vocabulary crate.**
   - Confirm zero non-dev dependencies in `crates/phonograph/Cargo.toml`.
   - Confirm no storage/backend/transaction concepts leaked through:
     ```bash
@@ -88,7 +88,7 @@ restores those modules in `phonograph_db`. Use per-crate checks during this phas
 
 ### ▸ Phase 1 Gate
 
-- [ ] **Phase 1 gate — all must pass:**
+- [x] **Phase 1 gate — all must pass:**
   ```bash
   cargo check -p phonograph
   cargo check -p phonograph --no-default-features --features alloc

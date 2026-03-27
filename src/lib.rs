@@ -87,13 +87,13 @@
 //! Extract owned data (nodes, edges, IDs) to share results across threads.
 
 // Re-export the core crate's modules.
-pub use graph_db_core::backend;
-pub use graph_db_core::backend_mem;
-pub use graph_db_core::constraint;
-pub use graph_db_core::error;
-pub use graph_db_core::inference;
-pub use graph_db_core::schema;
-pub use graph_db_core::types;
+pub use phonograph::backend;
+pub use phonograph::backend_mem;
+pub use phonograph::constraint;
+pub use phonograph::error;
+pub use phonograph::inference;
+pub use phonograph::schema;
+pub use phonograph::types;
 
 // Std-only modules defined in this crate.
 pub mod backend_std;

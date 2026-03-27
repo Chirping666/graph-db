@@ -1,14 +1,14 @@
 [package]
-name = "graph_db_core"
+name = "phonograph"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.82"
-description = "Core types, traits, and error hierarchy for graph_db (no_std + alloc)"
+description = "Core types, traits, and error hierarchy for typed property graphs (no_std + alloc)"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/Chirping666/graph-db"
 readme = "README.md"
-keywords = ["graph-database", "embedded-database", "property-graph", "no-std"]
-categories = ["database-implementations", "data-structures", "no-std"]
+keywords = ["graph", "property-graph", "no-std", "types", "schema"]
+categories = ["data-structures", "no-std"]
 
 [features]
 default = ["std"]

@@ -1,20 +1,17 @@
-//! Core types, traits, and error hierarchy for `graph_db`.
+//! Core types, traits, and error hierarchy for typed property graphs.
 //!
-//! This crate provides the `no_std + alloc` foundation used by the full
-//! `graph_db` database engine. It contains:
+//! `phonograph` is the `no_std + alloc` vocabulary crate for the Phonograph
+//! graph database. It contains:
 //!
 //! - **`types`** — Core data model: node/edge/type IDs, `Value`, `Node`, `Edge`,
 //!   `TypeDefinition`, `PropertyDeclaration`.
 //! - **`schema`** — Read-only view traits for the type registry and graph.
 //! - **`constraint`** — Pluggable constraint validation trait and change-tracking types.
 //! - **`inference`** — Pluggable inference rule trait, provenance, and materialization types.
-//! - **`error`** — Unified error hierarchy.
-//! - **`backend`** — Storage backend trait definitions (`ReadAt`, `WriteAt`, `Durability`).
-//! - **`backend_mem`** — In-memory storage backend.
+//! - **`error`** — Error types: `SchemaError`, `NotFoundError`, `InferenceError`.
 //!
-//! All modules (except `backend/lifecycle`) compile under `#![no_std]` with the
-//! `alloc` crate. Enable the `std` feature for `std::error::Error` implementations
-//! and file I/O helpers on `MemoryBackend`.
+//! All modules compile under `#![no_std]` with the `alloc` crate. Enable the
+//! `std` feature for `std::error::Error` implementations.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -23,7 +20,6 @@ extern crate alloc;
 
 #[cfg(feature = "alloc")]
 pub mod types;
-pub mod backend;
 #[cfg(feature = "alloc")]
 pub mod schema;
 #[cfg(feature = "alloc")]
@@ -32,8 +28,6 @@ pub mod constraint;
 pub mod inference;
 #[cfg(feature = "alloc")]
 pub mod error;
-#[cfg(feature = "alloc")]
-pub mod backend_mem;
 
 // Convenience re-exports.
 #[cfg(feature = "alloc")]
@@ -53,7 +47,4 @@ pub use inference::{
     MaterializedMapping, ProvenanceRecord,
 };
 #[cfg(feature = "alloc")]
-pub use error::{Error, InferenceError, NotFoundError, SchemaError, StorageError, TransactionError};
-pub use backend::{Durability, ReadAt, StorageBackend, StorageErrorKind, StorageErrorType, WriteAt};
-#[cfg(feature = "alloc")]
-pub use backend_mem::{MemoryBackend, MemoryError};
+pub use error::{InferenceError, NotFoundError, SchemaError};

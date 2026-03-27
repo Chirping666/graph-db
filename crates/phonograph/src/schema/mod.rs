@@ -27,8 +27,8 @@ use crate::types::{
 /// `WriteTransaction`:
 ///
 /// ```no_run
-/// use graph_db_core::schema::GraphView;
-/// use graph_db_core::NodeId;
+/// use phonograph::schema::GraphView;
+/// use phonograph::NodeId;
 ///
 /// fn check_graph(view: &dyn GraphView) {
 ///     if let Some(node) = view.get_node(NodeId(1)) {

@@ -26,7 +26,7 @@ use core::fmt;
 /// # Examples
 ///
 /// ```
-/// use graph_db_core::NodeId;
+/// use phonograph::NodeId;
 ///
 /// let id = NodeId(42);
 /// assert_eq!(id.0, 42);
@@ -61,7 +61,7 @@ impl fmt::Display for NodeId {
 /// # Examples
 ///
 /// ```
-/// use graph_db_core::EdgeId;
+/// use phonograph::EdgeId;
 ///
 /// let id = EdgeId(7);
 /// assert!(!id.is_null());
@@ -94,7 +94,7 @@ impl fmt::Display for EdgeId {
 /// # Examples
 ///
 /// ```
-/// use graph_db_core::TypeId;
+/// use phonograph::TypeId;
 ///
 /// let id = TypeId(1);
 /// assert!(!id.is_null());
@@ -127,7 +127,7 @@ impl fmt::Display for TypeId {
 /// # Examples
 ///
 /// ```
-/// use graph_db_core::PropertyKeyId;
+/// use phonograph::PropertyKeyId;
 ///
 /// let id = PropertyKeyId(3);
 /// assert!(!id.is_null());
@@ -165,7 +165,7 @@ impl fmt::Display for PropertyKeyId {
 /// # Examples
 ///
 /// ```
-/// use graph_db_core::{Value, NodeId};
+/// use phonograph::{Value, NodeId};
 ///
 /// let s = Value::String("hello".into());
 /// assert_eq!(s.as_str(), Some("hello"));
@@ -316,7 +316,7 @@ impl Value {
 /// # Examples
 ///
 /// ```
-/// use graph_db_core::{Value, ValueTypeDescriptor};
+/// use phonograph::{Value, ValueTypeDescriptor};
 ///
 /// let desc = ValueTypeDescriptor::I64;
 /// assert!(Value::I64(42).matches_descriptor(&desc));
@@ -371,7 +371,7 @@ pub type PropertyMap = BTreeMap<PropertyKeyId, Value>;
 /// # Examples
 ///
 /// ```
-/// use graph_db_core::{Node, NodeId, TypeId, Value, PropertyKeyId};
+/// use phonograph::{Node, NodeId, TypeId, Value, PropertyKeyId};
 /// use std::collections::BTreeMap;
 ///
 /// let mut props = BTreeMap::new();
@@ -408,7 +408,7 @@ pub struct Node {
 /// # Examples
 ///
 /// ```
-/// use graph_db_core::{Edge, EdgeId, NodeId, TypeId};
+/// use phonograph::{Edge, EdgeId, NodeId, TypeId};
 /// use std::collections::BTreeMap;
 ///
 /// let edge = Edge {
@@ -444,7 +444,7 @@ pub struct Edge {
 /// # Examples
 ///
 /// ```
-/// use graph_db_core::TypeKind;
+/// use phonograph::TypeKind;
 ///
 /// let k = TypeKind::Node;
 /// assert_eq!(format!("{k}"), "Node");
@@ -479,7 +479,7 @@ impl fmt::Display for TypeKind {
 /// # Examples
 ///
 /// ```
-/// use graph_db_core::{PropertyDeclaration, PropertyKeyId, ValueTypeDescriptor};
+/// use phonograph::{PropertyDeclaration, PropertyKeyId, ValueTypeDescriptor};
 /// use std::collections::BTreeMap;
 ///
 /// let decl = PropertyDeclaration {
@@ -517,7 +517,7 @@ pub struct PropertyDeclaration {
 /// # Examples
 ///
 /// ```
-/// use graph_db_core::{TypeDefinition, TypeId, TypeKind};
+/// use phonograph::{TypeDefinition, TypeId, TypeKind};
 /// use std::collections::BTreeMap;
 ///
 /// let td = TypeDefinition {
