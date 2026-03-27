@@ -287,7 +287,7 @@ to store it inline anyway, causing an arithmetic underflow.
   ```
   All tests pass.
 
-- [ ] **3.4 — Update the existing "moderately large" test.**
+- [x] **3.4 — Update the existing "moderately large" test.**
   The test `e2e_moderately_large_property_value` in
   `crates/phonograph_std/tests/e2e_integration.rs` currently uses 500 bytes with a
   comment noting that 10 KB+ values panic. Update the test:

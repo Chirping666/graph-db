@@ -760,10 +760,6 @@ fn e2e_property_update_only_changes_target() {
 
 #[test]
 fn e2e_moderately_large_property_value() {
-    // NOTE: Very large values (10KB+) trigger a panic in leaf page handling
-    // due to overflow page arithmetic. This is a known bug documented in the
-    // completion report. This test uses a smaller value that fits within a
-    // single leaf cell.
     let db = open_mem_db();
     let mut wtx = db.write_txn().unwrap();
     let nt = wtx
@@ -771,7 +767,7 @@ fn e2e_moderately_large_property_value() {
         .unwrap();
     let data_key = wtx.get_or_create_property_key("data").unwrap();
 
-    let data = vec![0xABu8; 500];
+    let data = vec![0xABu8; 10_000];
     let n = wtx
         .insert_node(
             NodeBuilder::new()
@@ -786,7 +782,7 @@ fn e2e_moderately_large_property_value() {
     let node = rtx.get_node(n).unwrap().unwrap();
     match node.properties.get(&data_key) {
         Some(Value::Bytes(b)) => {
-            assert_eq!(b.len(), 500);
+            assert_eq!(b.len(), 10_000);
             assert_eq!(&b[..], &data[..]);
         }
         other => panic!("Expected Bytes, got {other:?}"),
