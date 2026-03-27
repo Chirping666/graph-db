@@ -102,10 +102,10 @@ impl BTree {
         pool.unpin_page(frame, false);
 
         // Check for duplicate key and replace
-        if let Some(existing) = leaf.delete_cell(key) {
-            if let LeafCellValue::Overflow { overflow_page_id, .. } = &existing.value {
-                self.free_overflow_chain(*overflow_page_id, pool, backend, &mut freed)?;
-            }
+        if let Some(existing) = leaf.delete_cell(key)
+            && let LeafCellValue::Overflow { overflow_page_id, .. } = &existing.value
+        {
+            self.free_overflow_chain(*overflow_page_id, pool, backend, &mut freed)?;
         }
 
         let new_cell = self.create_leaf_cell(key, value, pool, allocator, backend, txn_id, &mut allocated)?;
