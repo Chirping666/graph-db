@@ -441,7 +441,7 @@ This phase converts remaining `assert!`/`panic!` in public library methods to pr
 
 ## Phase 6: Final Verification
 
-- [ ] **6.1 — Full workspace build, test, lint, docs.**
+- [x] **6.1 — Full workspace build, test, lint, docs.**
   ```bash
   cargo build --workspace
   cargo test --workspace
