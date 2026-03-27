@@ -10,11 +10,10 @@ categories = ["database-implementations", "no-std"]
 
 [features]
 default = ["std"]
-std = ["alloc", "phonograph/std"]
-alloc = ["phonograph/alloc"]
+std = ["phonograph/std"]
 
 [dependencies]
-phonograph = { version = "0.1", path = "../phonograph", default-features = false, features = ["alloc"] }
+phonograph = { version = "0.1", path = "../phonograph", default-features = false }
 spin = { version = "0.10", default-features = false, features = ["mutex", "rwlock", "spin_mutex"] }
 hashbrown = { version = "0.16", default-features = false, features = ["default-hasher"] }
 crc32fast = "1"

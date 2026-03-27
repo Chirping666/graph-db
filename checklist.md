@@ -126,7 +126,7 @@ direction), then `phonograph_db` (depends on `phonograph`), then update
   Both pass. The second command now compiles the full crate (minus `std::error::Error`
   impls), not an empty shell.
 
-- [ ] **2.3 — Simplify `phonograph_db` feature flags.**
+- [x] **2.3 — Simplify `phonograph_db` feature flags.**
   In `crates/phonograph_db/Cargo.toml`:
   - Change the `[features]` section to:
     ```toml
