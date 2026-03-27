@@ -1,315 +1,447 @@
-# checklist.md — Workspace Redesign Migration
+# checklist.md — Cleanup, Hardening & Edition Upgrade
 
-**Design document:** `030-workspace-redesign.md`  
-**Governs:** `CLAUDE.md` (session workflow)  
+**Task:** 31  
+**CLAUDE.md:** `031-cleanup-hardening/CLAUDE.md`  
 **Status:** Pending
 
 Execute items in order. Each step has a verification command — do not proceed until
-it passes. Steps marked **⚠ WORKSPACE BROKEN** indicate that `cargo check --workspace`
-will fail until a later gate restores it; use per-crate checks in those intervals.
-
-After completing each step and passing its verification, mark it done by changing - [ ] to - [x] in this file.
+it passes. After completing each step and passing its verification, mark it done by
+changing `- [ ]` to `- [x]` in this file.
 
 ---
 
-## Phase 0: Pre-Migration Snapshot
+## Phase 0: Baseline Snapshot
 
-- [x] **0.1 — Baseline verification.** Confirm the workspace compiles and all tests pass
-  before making any changes.
+- [ ] **0.1 — Record the current test baseline.**
+  ```bash
+  cargo test --workspace 2>&1 | tail -5
+  cargo clippy --workspace --all-targets -- -D warnings
+  ```
+  Record the exact test count. This is the regression baseline — every test that
+  passes here must still pass at the end (with allowed adjustments for changed
+  feature gates and reverted let-chains).
+  **Verify:** Zero failures, zero clippy warnings.
+
+---
+
+## Phase 1: Edition Upgrade
+
+> **Reference:** CLAUDE.md D1, D3
+
+This phase upgrades the edition and removes MSRV pinning. Do this first because
+edition 2024 enables let-chain syntax, which Phase 1 also restores.
+
+- [ ] **1.1 — Update workspace `Cargo.toml`.**
+  - Change `edition = "2021"` → `edition = "2024"` in `[workspace.package]`.
+  - Remove `rust-version = "1.82"` from `[workspace.package]`.
+  - **Verify:** `cargo check --workspace` passes. (If your local toolchain is older
+    than 1.85, update it first — edition 2024 requires Rust 1.85+.)
+
+- [ ] **1.2 — Update per-crate `Cargo.toml` files.**
+  For each of the three crates (`crates/phonograph/Cargo.toml`,
+  `crates/phonograph_db/Cargo.toml`, `crates/phonograph_std/Cargo.toml`):
+  - If the crate has its own `edition` key, change it to `"2024"` or remove it
+    (it inherits from `workspace.package`).
+  - Remove any `rust-version` field.
+  - **Verify:** `cargo check --workspace` passes.
+
+- [ ] **1.3 — Revert let-chain refactors.**
+  Locate the 5 sites where let-chains were refactored to nested `if` blocks for
+  edition 2021 compatibility. Restore the original `if let ... && ...` syntax.
+
+  Known sites (approximate line numbers — search for the nested `if let` patterns):
+  - `crates/phonograph_db/src/storage/btree/cursor.rs` (~line 160)
+  - `crates/phonograph_db/src/db/database.rs` (~line 405)
+  - `crates/phonograph_db/src/db/write_txn.rs` (~line 938)
+  - `crates/phonograph_std/tests/inference_tests.rs` (~line 811)
+  - `crates/phonograph_std/tests/e2e_integration.rs` (~line 563)
+
+  For each site: read the surrounding code to understand the condition, then
+  collapse the nested `if`/`if let` back into a single `if let ... && ...` chain.
+
+  **Verify:**
   ```bash
   cargo test --workspace
-  cargo clippy --workspace --all-targets --all-features -- -D warnings
+  cargo clippy --workspace --all-targets -- -D warnings
   ```
-  Record the test count (expected: 473+ tests, 60+ doc-tests). This is the regression
-  baseline — every test that passes here must still pass at the end.
-  **Verify:** Zero failures. Note the exact counts.
-
-- [x] **0.2 — Workspace Cargo.toml: switch to explicit resolver.** Add `resolver = "2"`
-  to the workspace `[workspace]` table if not already present. This is required for the
-  new three-crate layout.
-  **Verify:** `cargo check --workspace` still passes.
-
----
-
-## Phase 1: Rename `graph_db_core` → `phonograph` + Strip Non-Vocabulary Modules
-
-> **Reference:** `030-workspace-redesign.md` §5, §8, §14 Phase 1
-
-**⚠ WORKSPACE BROKEN after this phase.** The `graph_db` crate depends on modules that
-will be removed from `phonograph`. The workspace will not compile again until Phase 2
-restores those modules in `phonograph_db`. Use per-crate checks during this phase.
-
-- [x] **1.1 — Rename the directory and update crate metadata.**
-  - Rename `crates/graph_db_core/` → `crates/phonograph/`.
-  - Update `crates/phonograph/Cargo.toml`: set `name = "phonograph"`, update `description`,
-    `keywords`, and `categories` per `030` §5.
-  - Update workspace root `Cargo.toml`: change `members` to include `crates/phonograph`
-    instead of `crates/graph_db_core`.
-  - Update `graph_db`'s `Cargo.toml`: change the dependency from `graph_db_core` to
-    `phonograph = { path = "crates/phonograph" }`.
-  - Update all `use graph_db_core::` imports in `graph_db/src/` to `use phonograph::`.
-  - **Verify:** `cargo check -p phonograph` passes.
-
-- [x] **1.2 — Remove backend modules from `phonograph`.**
-  - Delete `crates/phonograph/src/backend/` directory.
-  - Delete `crates/phonograph/src/backend_mem/` directory.
-  - Remove `pub mod backend;` and `pub mod backend_mem;` from `crates/phonograph/src/lib.rs`.
-  - Remove all backend-related re-exports from `lib.rs` (`ReadAt`, `WriteAt`, `Durability`,
-    `StorageBackend`, `StorageErrorKind`, `StorageErrorType`, `MemoryBackend`, `MemoryError`).
-  - **Do not delete the source files permanently yet** — copy them to a temporary staging
-    location or recover from git history in Phase 2.
-  - **Verify:** `cargo check -p phonograph --no-default-features --features alloc` passes.
-
-- [x] **1.3 — Strip database-specific error types from `phonograph`.**
-  In `crates/phonograph/src/error/mod.rs`:
-  - Remove the `StorageError` struct.
-  - Remove the `TransactionError` enum.
-  - Remove the unified `Error` enum.
-  - Remove all `From` impls that convert into the unified `Error`.
-  - Keep `SchemaError`, `NotFoundError`, `InferenceError` and their `Display` impls.
-  - Update `lib.rs` re-exports to only export the kept error types.
-  - **Verify:** `cargo check -p phonograph --no-default-features --features alloc` passes.
-
-- [x] **1.4 — Verify `phonograph` is a clean vocabulary crate.**
-  - Confirm zero non-dev dependencies in `crates/phonograph/Cargo.toml`.
-  - Confirm no storage/backend/transaction concepts leaked through:
-    ```bash
-    grep -r "ReadAt\|WriteAt\|StorageBackend\|MemoryBackend\|StorageError\|TransactionError" crates/phonograph/src/
-    ```
-    Must return empty.
-  - Confirm feature flags match `030` §12:
-    ```toml
-    [features]
-    default = ["std"]
-    std = ["alloc"]
-    alloc = []
-    ```
-  - **Verify:** All three checks pass. `phonograph` is self-contained.
 
 ### ▸ Phase 1 Gate
 
-- [x] **Phase 1 gate — all must pass:**
+- [ ] **Phase 1 gate:**
   ```bash
-  cargo check -p phonograph
-  cargo check -p phonograph --no-default-features --features alloc
-  cargo test -p phonograph
-  cargo doc -p phonograph --no-deps
+  cargo test --workspace
+  cargo clippy --workspace --all-targets -- -D warnings
+  cargo doc --workspace --no-deps
   ```
-  The workspace as a whole will NOT compile yet — `graph_db` has broken imports.
-  This is expected and will be resolved in Phase 2.
+  All pass. The workspace is now on edition 2024 with no MSRV constraint.
 
 ---
 
-## Phase 2: Create `phonograph_db` Crate
+## Phase 2: Feature Flag Simplification
 
-> **Reference:** `030-workspace-redesign.md` §6, §8, §9, §10, §11, §14 Phase 2
+> **Reference:** CLAUDE.md D2
 
-This is the largest phase. It creates the database engine crate, moves code into it,
-swaps sync primitives, and generifies `Database<B>`.
+This phase removes the unnecessary `alloc` feature from `phonograph` and
+`phonograph_db`, making `extern crate alloc` unconditional.
 
-- [x] **2.1 — Scaffold `phonograph_db` crate.**
-  - Create `crates/phonograph_db/` with `Cargo.toml` and `src/lib.rs`.
-  - `Cargo.toml` per `030` §6: depend on `phonograph`, `spin`, `hashbrown`, `crc32fast`,
-    `xxhash-rust`. Feature flags per `030` §12.
-  - `src/lib.rs`: add `#![cfg_attr(not(feature = "std"), no_std)]` and `extern crate alloc`.
-  - Add `phonograph_db` to workspace `members` in root `Cargo.toml`.
-  - **Verify:** `cargo check -p phonograph_db` passes (empty crate).
+**⚠ Order matters.** Start with `phonograph` (no dependents in the vocabulary
+direction), then `phonograph_db` (depends on `phonograph`), then update
+`phonograph_std` and any workspace-level references.
 
-- [x] **2.2 — Move backend traits and in-memory backend into `phonograph_db`.**
-  - Restore `backend/` and `backend_mem/` from the pre-Phase-1 state (via `git` or staging)
-    into `crates/phonograph_db/src/`.
-  - Rename the `StorageError` *trait* (in `backend/`) to `BackendError` per decision R17.
-  - Update all references to the old trait name.
-  - Update imports: `use graph_db_core::` → `use crate::` or `use phonograph::` as appropriate.
-  - Wire up `pub mod backend;` and `pub mod backend_mem;` in `phonograph_db`'s `lib.rs`.
+- [ ] **2.1 — Simplify `phonograph` feature flags.**
+  In `crates/phonograph/Cargo.toml`:
+  - Change the `[features]` section to:
+    ```toml
+    [features]
+    default = ["std"]
+    std = []
+    ```
+  - Remove the `alloc = []` line.
+  - Remove `tempfile = "3"` from `[dev-dependencies]` (a vocabulary crate has no
+    use for temp files).
+  - **Verify:** `cargo check -p phonograph` passes.
+
+- [ ] **2.2 — Remove `#[cfg(feature = "alloc")]` gates from `phonograph` source.**
+  In `crates/phonograph/src/lib.rs`:
+  - Remove all `#[cfg(feature = "alloc")]` attributes from `pub mod` declarations
+    and `pub use` re-exports. These modules are now unconditional.
+  - Ensure `extern crate alloc;` is present unconditionally (remove any
+    `#[cfg(feature = "alloc")]` guard on it).
+  - Keep `#![cfg_attr(not(feature = "std"), no_std)]` — this is still needed.
+  - Remove any `#[cfg(feature = "alloc")]` from compile-test assertions
+    (e.g., `Send + Sync` static assertions).
+
+  Scan all files under `crates/phonograph/src/` for remaining `cfg(feature = "alloc")`
+  and remove them:
+  ```bash
+  grep -rn 'cfg.*feature.*alloc' crates/phonograph/src/
+  ```
+  Must return empty.
+
+  **Verify:**
+  ```bash
+  cargo check -p phonograph
+  cargo check -p phonograph --no-default-features
+  ```
+  Both pass. The second command now compiles the full crate (minus `std::error::Error`
+  impls), not an empty shell.
+
+- [ ] **2.3 — Simplify `phonograph_db` feature flags.**
+  In `crates/phonograph_db/Cargo.toml`:
+  - Change the `[features]` section to:
+    ```toml
+    [features]
+    default = ["std"]
+    std = ["phonograph/std"]
+    ```
+  - Remove the `alloc = [...]` line.
+  - Update the `phonograph` dependency: remove `features = ["alloc"]` from the
+    dependency specification (alloc is no longer a feature). Keep
+    `default-features = false`.
+    ```toml
+    phonograph = { version = "0.1", path = "../phonograph", default-features = false }
+    ```
   - **Verify:** `cargo check -p phonograph_db` passes.
 
-- [x] **2.3 — Move storage engine into `phonograph_db`.**
-  - Move `graph_db/src/storage/` → `crates/phonograph_db/src/storage/`.
-  - Update all imports in the moved files: `use crate::` paths, `use phonograph::` for
-    core types, remove any `use graph_db_core::` or `use graph_db::` references.
-  - Wire up `pub mod storage;` in `phonograph_db`'s `lib.rs`.
-  - **Verify:** `cargo check -p phonograph_db` passes.
+- [ ] **2.4 — Remove `#[cfg(feature = "alloc")]` gates from `phonograph_db` source.**
+  In `crates/phonograph_db/src/lib.rs`:
+  - Remove all `#[cfg(feature = "alloc")]` attributes from `pub mod` declarations,
+    `pub use` re-exports, and the `extern crate alloc;` statement.
+  - Keep `#![cfg_attr(not(feature = "std"), no_std)]`.
 
-- [x] **2.4 — Move database engine into `phonograph_db`.**
-  - Move `graph_db/src/db/` → `crates/phonograph_db/src/db/`.
-  - Update all imports in the moved files.
-  - Wire up `pub mod db;` in `phonograph_db`'s `lib.rs`.
-  - This will NOT compile yet — `db/` depends on `std::sync`, `std::collections::HashMap`,
-    `AnyBackend`, and `PathBuf`/`StorageMode`. Those are fixed in the next steps.
-  - **Verify:** Deferred to 2.8.
+  Scan all files under `crates/phonograph_db/src/` for remaining
+  `cfg(feature = "alloc")` and remove them:
+  ```bash
+  grep -rn 'cfg.*feature.*alloc' crates/phonograph_db/src/
+  ```
+  Must return empty.
 
-- [x] **2.5 — Create the `phonograph_db` error module.**
-  - Create `crates/phonograph_db/src/error/mod.rs`.
-  - Define `StorageError` struct (moved from old `graph_db_core`).
-  - Define `TransactionError` enum (moved from old `graph_db_core`).
-  - Define the unified `Error` enum, referencing `phonograph::SchemaError`,
-    `phonograph::NotFoundError`, `phonograph::InferenceError` for the vocabulary variants.
-  - Implement `Display`, `From` conversions, and conditional `std::error::Error`.
-  - Wire up `pub mod error;` in `phonograph_db`'s `lib.rs`.
-  - **Verify:** Deferred to 2.8.
+  **Verify:**
+  ```bash
+  cargo check -p phonograph_db
+  cargo check -p phonograph_db --no-default-features
+  ```
+  Both pass.
 
-- [x] **2.6 — Create `sync.rs` and swap sync primitives.**
-  - Create `crates/phonograph_db/src/sync.rs` per `030` §10:
-    ```rust
-    pub(crate) use spin::Mutex;
-    pub(crate) use spin::MutexGuard;
-    pub(crate) use spin::RwLock;
-    pub(crate) use spin::RwLockReadGuard;
-    pub(crate) use spin::RwLockWriteGuard;
-    pub(crate) use alloc::sync::Arc;
-    ```
-  - Replace all `use std::sync::{Mutex, RwLock, Arc, ...}` in `db/` and `storage/`
-    with `use crate::sync::*`.
-  - Replace all `use std::collections::HashMap` with `use hashbrown::HashMap`.
-  - **Verify:** Deferred to 2.8.
+- [ ] **2.5 — Update `phonograph_std` dependency specification.**
+  In `crates/phonograph_std/Cargo.toml`:
+  - If the `phonograph` or `phonograph_db` dependencies reference `features = ["alloc"]`,
+    remove that. The `alloc` feature no longer exists.
+  - **Verify:** `cargo check -p phonograph_std` passes.
 
-- [x] **2.7 — Generify `Database<B>` and split `DatabaseConfig`.**
-  - Make `Database`, `DatabaseInner`, `ReadTransaction`, `WriteTransaction` generic
-    over `B: StorageBackend` per `030` §9.
-  - Remove `AnyBackend` from `phonograph_db` (it moves to `phonograph_std` in Phase 3).
-  - Split `DatabaseConfig`: keep only engine-level fields (`page_size`,
-    `buffer_pool_frames`, `inference_cache_size`, `application_id`). Remove `PathBuf`,
-    `StorageMode`, and any `std::path` references.
-  - Rewrite `Database::open` / `Database::create` to accept a backend `B` directly
-    instead of constructing one internally from config.
-  - **Verify:** Deferred to 2.8.
+- [ ] **2.6 — Update workspace-level references.**
+  In the workspace root `Cargo.toml`, if `[workspace.dependencies]` specifies
+  `features = ["alloc"]` for `phonograph` or `phonograph_db`, remove it.
 
-- [x] **2.8 — Add re-exports and compile `phonograph_db`.**
-  - Add `pub use phonograph::*;` re-export in `phonograph_db`'s `lib.rs` (decision R14).
-  - Add convenience re-exports for the database facade types.
-  - Resolve any remaining compile errors from the moves and refactors.
-  - **Verify:**
-    ```bash
-    cargo check -p phonograph_db
-    cargo check -p phonograph_db --no-default-features --features alloc
-    ```
-    Both commands pass. This is the critical gate — the database engine compiles
-    under `no_std + alloc`.
+  Scan the entire workspace for any remaining references to the `alloc` feature:
+  ```bash
+  grep -rn 'features.*alloc' crates/ Cargo.toml
+  ```
+  Must return empty (except comments or documentation).
+
+  **Verify:** `cargo check --workspace` passes.
 
 ### ▸ Phase 2 Gate
 
-- [x] **Phase 2 gate — all must pass:**
+- [ ] **Phase 2 gate:**
   ```bash
-  cargo check -p phonograph
-  cargo check -p phonograph --no-default-features --features alloc
-  cargo check -p phonograph_db
-  cargo check -p phonograph_db --no-default-features --features alloc
+  cargo check --workspace
+  cargo check -p phonograph --no-default-features
+  cargo check -p phonograph_db --no-default-features
+  cargo test --workspace
+  cargo clippy --workspace --all-targets -- -D warnings
   ```
-  The workspace still won't fully compile because `graph_db` (the old top-level
-  crate) has had its `src/storage/`, `src/db/`, and `src/backend_std/` gutted.
-  Phase 3 addresses this.
+  All pass. The `--no-default-features` commands now compile fully functional
+  `no_std` crates, not empty shells.
 
 ---
 
-## Phase 3: Create `phonograph_std` Crate
+## Phase 3: Fix Large Property Value Panic
 
-> **Reference:** `030-workspace-redesign.md` §7, §14 Phase 3
+> **Reference:** CLAUDE.md D4
 
-- [x] **3.1 — Scaffold `phonograph_std` crate.**
-  - Create `crates/phonograph_std/` with `Cargo.toml` and `src/lib.rs`.
-  - `Cargo.toml` per `030` §7: depend on `phonograph` and `phonograph_db`.
-    Add `libc` under `[target.'cfg(unix)'.dependencies]`.
-  - No feature flags — this crate is always `std`.
-  - Add `phonograph_std` to workspace `members`.
-  - **Verify:** `cargo check -p phonograph_std` passes (empty crate).
+This phase fixes the crash bug where inserting a property value >~1 KB causes
+a subtraction overflow panic in the leaf page handling code.
 
-- [x] **3.2 — Move `FileBackend` and create `AnyBackend`.**
-  - Move `graph_db/src/backend_std/` → `crates/phonograph_std/src/backend_std/`.
-  - Update imports to reference `phonograph_db::backend::*` for the backend traits.
-  - Create `crates/phonograph_std/src/any_backend.rs` — move the `AnyBackend` enum
-    from the old `db/database.rs`. It now wraps `FileBackend` and
-    `phonograph_db::backend_mem::MemoryBackend`.
-  - **Verify:** `cargo check -p phonograph_std` passes.
+**Background:** The overflow page infrastructure exists and works (`OverflowPage::build`,
+`build_chain`, `read_chain` are implemented and tested). The bug is in the B-tree insert
+path — when a record's serialized value exceeds the inline threshold, the code attempts
+to store it inline anyway, causing an arithmetic underflow.
 
-- [x] **3.3 — Add convenience API and re-exports.**
-  In `phonograph_std`'s `lib.rs`:
-  - `pub use phonograph::*;` and `pub use phonograph_db::*;` (decision R14).
-  - `pub type Database = phonograph_db::Database<AnyBackend>;`
-  - `pub fn open(path: impl AsRef<std::path::Path>) -> Result<Database, Error>`
-  - `pub fn open_in_memory() -> Result<Database, Error>`
-  - Create `FileConfig` struct per `030` §9 (`path`, `read_only`, `engine: DatabaseConfig`).
-  - **Verify:** `cargo check -p phonograph_std` passes.
+- [ ] **3.1 — Locate and diagnose the exact panic site.**
+  The panic was reported at `leaf.rs:215` (approximate — line numbers may have
+  shifted during migration). Reproduce it:
+  ```rust
+  // In a test:
+  let db = /* open in-memory database */;
+  let mut wtx = db.write_txn().unwrap();
+  let nt = wtx.register_type(TypeDefinitionBuilder::node_type("Big").build()).unwrap();
+  let key = wtx.get_or_create_property_key("data").unwrap();
+  let big_value = Value::Bytes(vec![0xABu8; 10_000]);
+  // This should NOT panic:
+  wtx.insert_node(
+      NodeBuilder::new().type_label(nt).property(key, big_value).build()
+  ).unwrap();
+  wtx.commit().unwrap();
+  ```
+  Run the test, confirm the panic, and identify the exact code path. Document the
+  call chain from `insert_node` → serialization → B-tree insert → leaf page handling.
+
+  **Verify:** You can reproduce the panic and understand the root cause.
+
+- [ ] **3.2 — Implement overflow dispatch in the B-tree insert path.**
+  The fix requires the B-tree insert code to detect when a serialized record value
+  exceeds the inline leaf cell threshold and dispatch to overflow page storage
+  instead. This involves:
+
+  1. **Determine the overflow threshold.** Per `008-file-format-spec.md` §8.2, a
+     leaf cell triggers overflow when `total_cell_size > (page_size - 44) / 4`.
+     For 4 KB pages: `(4096 - 44) / 4 = 1013` bytes.
+
+  2. **At the insert site**, check the serialized value length against the threshold.
+     If it exceeds the threshold:
+     - Allocate overflow pages via the page allocator.
+     - Write the value to overflow pages using `OverflowPage::build_chain`.
+     - Create a `LeafCellValue::Overflow { overflow_page_id, total_overflow_len }`
+       cell instead of `LeafCellValue::Inline(value_bytes)`.
+
+  3. **At the read site**, the overflow read path should already work (leaf page
+     parsing detects `OVERFLOW_SENTINEL` and returns `LeafCellValue::Overflow`).
+     Verify that the record deserialization code handles reading from overflow
+     pages when it encounters an overflow cell.
+
+  The exact location of the fix depends on the codebase structure. The likely
+  insertion points are in `phonograph_db/src/storage/` — either in the B-tree
+  insert module or in the storage engine's record-writing logic.
+
+  **⚠ Pitfall — CoW semantics.** Overflow pages allocated during a write transaction
+  must follow the same Copy-on-Write discipline as B-tree pages. They are allocated
+  fresh (never reuse existing overflow pages) and become garbage when the record is
+  updated or deleted.
+
+  **⚠ Pitfall — record updates.** When updating a node/edge whose old value was
+  inline but the new value requires overflow (or vice versa), the transition must
+  be handled correctly. Also handle the case where both old and new values overflow.
+
+  **Verify:** The panic from step 3.1 no longer occurs.
+
+- [ ] **3.3 — Add tests for large property values.**
+  Add integration tests (in `phonograph_std/tests/` or as a new test file):
+
+  1. **10 KB value round-trip:** Insert a node with `Value::Bytes(vec![0xAB; 10_000])`,
+     commit, read back, verify exact match.
+  2. **100 KB value round-trip:** Same with 100,000 bytes. Exercises multi-page
+     overflow chains.
+  3. **Update inline → overflow:** Insert a node with a small property (50 bytes),
+     update it to a large property (10 KB), read back and verify.
+  4. **Update overflow → inline:** Insert with 10 KB, update to 50 bytes, verify.
+  5. **Update overflow → overflow:** Insert with 10 KB, update to 20 KB, verify.
+  6. **Delete node with overflow value:** Insert with 10 KB, delete the node, commit.
+     Verify no crash (overflow pages are freed or become garbage).
+  7. **Multiple overflow nodes:** Insert 10 nodes each with 5 KB values. Read all
+     back. Verify all values match.
+
+  **Verify:**
+  ```bash
+  cargo test --workspace -- large_property
+  ```
+  All tests pass.
+
+- [ ] **3.4 — Update the existing "moderately large" test.**
+  The test `e2e_moderately_large_property_value` in
+  `crates/phonograph_std/tests/e2e_integration.rs` currently uses 500 bytes with a
+  comment noting that 10 KB+ values panic. Update the test:
+  - Increase the test value to 10,000 bytes (or add a companion test at that size).
+  - Remove the comment about the known bug.
+
+  **Verify:** `cargo test --workspace -- moderately_large` passes.
 
 ### ▸ Phase 3 Gate
 
-- [x] **Phase 3 gate — all must pass:**
+- [ ] **Phase 3 gate:**
   ```bash
-  cargo check -p phonograph
-  cargo check -p phonograph_db
-  cargo check -p phonograph_std
+  cargo test --workspace
   ```
-  All three crates compile. The workspace may still not build because `graph_db`
-  (the old root crate) is now a gutted shell. Phase 4 fixes that.
+  All tests pass, including the new large-value tests. Zero panics.
 
 ---
 
-## Phase 4: Retire or Facade `graph_db`
+## Phase 4: Panic-to-Result Conversions
 
-> **Reference:** `030-workspace-redesign.md` §14 Phase 4
+> **Reference:** CLAUDE.md D5, audit `archive/audits/2026-03-26-codebase-audit.md` §3
 
-- [x] **4.1 — Decide: facade or delete.** Confirm choice with the user before proceeding.
-  - **Option A (facade):** Replace `graph_db`'s `src/lib.rs` with a single re-export:
-    `pub use phonograph_std::*;`. Update `graph_db`'s `Cargo.toml` to depend only on
-    `phonograph_std`. Remove `crc32fast`, `xxhash-rust`, `libc` — those now belong to
-    their respective crates.
-  - **Option B (delete):** Remove `graph_db` from the workspace entirely. Move `tests/`,
-    `examples/`, `fuzz/`, `README.md`, `CHANGELOG.md`, and licenses to the workspace root
-    (or into `phonograph_std`). Update the workspace `Cargo.toml`.
+This phase converts remaining `assert!`/`panic!` in public library methods to proper
+`Result` error returns. Test-only panics and `debug_assert!` are left as-is.
 
-- [x] **4.2 — Migrate tests and examples.**
-  - Update all `use graph_db::` imports in `tests/` and `examples/` to use the new
-    crate paths (`use phonograph_std::*` if using the facade, or direct crate imports).
-  - Ensure doc-tests in all three crates compile.
-  - Move integration tests to the appropriate crate or to the workspace `tests/` root.
-  - **Verify:** `cargo test --workspace` passes.
+- [ ] **4.1 — Audit remaining panics in `phonograph_db` public API.**
+  Search for panic-inducing patterns in library code:
+  ```bash
+  grep -rn 'assert!\|panic!\|\.unwrap()\|\.expect(' crates/phonograph_db/src/ | grep -v '#\[cfg(test)\]' | grep -v 'mod tests'
+  grep -rn 'assert!\|panic!\|\.unwrap()\|\.expect(' crates/phonograph/src/ | grep -v '#\[cfg(test)\]' | grep -v 'mod tests'
+  grep -rn 'assert!\|panic!\|\.unwrap()\|\.expect(' crates/phonograph_std/src/ | grep -v '#\[cfg(test)\]' | grep -v 'mod tests'
+  ```
+  Categorize each hit:
+  - **User-triggerable** → must convert to `Result`. Examples: `OverflowPage::build`
+    assert on data length, `LeafPage::build` assert on page capacity.
+  - **Internal invariant** (only reachable if the library itself has a bug) → acceptable
+    as `debug_assert!` or a comment explaining why it's unreachable.
+  - **Spin mutex `.lock()`** → verify that `spin::Mutex::lock()` returns the guard
+    directly (not `Result`). If so, no `.unwrap()` is needed and any existing
+    `.unwrap()` calls are incorrect (they should just be `.lock()`). If `spin::Mutex`
+    does return `Result`, the `.unwrap()` is acceptable (poisoned mutex = prior panic =
+    unrecoverable).
 
-- [x] **4.3 — Update workspace-level metadata.**
-  - Update root `Cargo.toml` workspace members list.
-  - Update `exclude` patterns (now just `"archive/"`, `"fuzz/"`, etc.).
-  - Update `repository` URL if still placeholder.
-  - **Verify:** `cargo check --workspace` passes.
+  Produce a list of all sites that need conversion. Document it.
+
+  **Verify:** List is complete and categorized.
+
+- [ ] **4.2 — Convert `OverflowPage::build` and `build_chain` panics.**
+  `OverflowPage::build` currently panics via `assert!` if `data.len() > max_payload`.
+  `OverflowPage::build_chain` panics if `page_ids` is empty or insufficient.
+
+  Both are public methods. Convert to `Result<Vec<u8>, StorageError>` and
+  `Result<Vec<Vec<u8>>, StorageError>` respectively.
+
+  Update all call sites.
+
+  **Verify:** `cargo test --workspace` passes.
+
+- [ ] **4.3 — Convert `LeafPage::build` panic.**
+  `LeafPage::build` currently panics via `assert!` if cells don't fit in the page.
+  Convert to `Result<Vec<u8>, StorageError>`.
+
+  Update all call sites.
+
+  **Verify:** `cargo test --workspace` passes.
+
+- [ ] **4.4 — Convert any other user-triggerable panics found in 4.1.**
+  Work through the remaining items from the 4.1 audit. For each:
+  - Change the method signature to return `Result` (if not already).
+  - Replace the `assert!`/`panic!`/`unwrap()` with a `map_err` or early `return Err(...)`.
+  - Update call sites.
+
+  **Verify:** `cargo test --workspace` passes after each conversion.
+
+- [ ] **4.5 — Verify no remaining unwraps in `leaf.rs` parse paths.**
+  The `parse` method in `leaf.rs` still contains two `try_into().unwrap()` calls
+  inside the overflow cell parsing branch (parsing `overflow_page_id` and
+  `total_overflow_len`). These are on slices that are bounds-checked above, but
+  they should use `map_err` for consistency and defense-in-depth.
+
+  ```bash
+  grep -n 'unwrap()' crates/phonograph_db/src/storage/page/leaf.rs
+  ```
+
+  Convert any remaining production-code `.unwrap()` to `.map_err(...)`.
+
+  **Verify:**
+  ```bash
+  grep -n 'unwrap()' crates/phonograph_db/src/storage/page/leaf.rs
+  ```
+  Returns only lines inside `#[cfg(test)]` blocks.
 
 ### ▸ Phase 4 Gate
 
-- [x] **Phase 4 gate — all must pass:**
+- [ ] **Phase 4 gate:**
   ```bash
-  cargo check --workspace
   cargo test --workspace
+  cargo clippy --workspace --all-targets -- -D warnings
   ```
-  The workspace compiles and all tests pass. This is the first time since Phase 1
-  that the full workspace is healthy.
+  All pass. No panics in public library code on user-controllable input.
 
 ---
 
-## Phase 5: Final Verification
+## Phase 5: Documentation & Metadata Cleanup
 
-> **Reference:** `030-workspace-redesign.md` §17
+- [ ] **5.1 — Update CHANGELOG.md.**
+  - Remove "Large property values (>~1 KB) may cause panics" from Known Limitations.
+  - Add a `### Fixed` section under `## [0.1.0]`:
+    ```
+    ### Fixed
+    - Large property values (>1 KB) now correctly use overflow pages instead of panicking
+    - Public API methods no longer panic on user-controllable input (return Result instead)
+    ```
+  - Update "Known Limitations" to reflect only the genuine remaining limitations:
+    - `nodes_by_property()` performs a full scan (no property value index)
+    - Query methods return owned `Vec`s (no streaming iterator API)
+    - No batch insert API
+    - `write_txn()` blocks indefinitely (no configurable timeout)
+    - Provenance registry loaded entirely in memory
 
-Run the complete verification checklist. Every item must pass.
+  **Verify:** CHANGELOG.md is well-formatted.
 
-- [x] **5.1 — `phonograph` isolation checks.**
+- [ ] **5.2 — Update README.md.**
+  - Remove "Large property values (>~1 KB) are not supported in v0.1" from Known
+    Limitations.
+  - Verify the feature flag documentation reflects the simplified structure (no `alloc`
+    feature).
+
+  **Verify:** README.md is accurate.
+
+- [ ] **5.3 — Update project root `CLAUDE.md`.**
+  - Update Rule 2 (`no_std + alloc` boundary): remove references to the `alloc` feature
+    flag. The boundary is now just `#![cfg_attr(not(feature = "std"), no_std)]` +
+    unconditional `extern crate alloc`.
+  - Remove any `rust-version` or MSRV references.
+  - Update the verification command: `cargo check -p phonograph --no-default-features`
+    (no `--features alloc`).
+  - Update feature flag structure documentation to match the new simplified flags.
+
+  **Verify:** CLAUDE.md is accurate and internally consistent.
+
+### ▸ Phase 5 Gate
+
+- [ ] **Phase 5 gate:**
   ```bash
-  cargo check -p phonograph --no-default-features --features alloc
-  grep -r "ReadAt\|WriteAt\|StorageBackend\|StorageError\|TransactionError" crates/phonograph/src/
+  cargo doc --workspace --no-deps
   ```
-  First command passes. Second command returns empty.
-  Inspect `crates/phonograph/Cargo.toml` — zero non-dev dependencies.
+  Zero warnings.
 
-- [x] **5.2 — `phonograph_db` no\_std checks.**
-  ```bash
-  cargo check -p phonograph_db --no-default-features --features alloc
-  grep -r "use std::" crates/phonograph_db/src/
-  ```
-  First command passes. Second returns empty or only `#[cfg(feature = "std")]`-gated lines.
+---
 
-- [x] **5.3 — `phonograph_std` compilation.**
-  ```bash
-  cargo check -p phonograph_std
-  ```
-  Passes.
+## Phase 6: Final Verification
 
-- [x] **5.4 — Full workspace build, test, lint, docs.**
+- [ ] **6.1 — Full workspace build, test, lint, docs.**
   ```bash
   cargo build --workspace
   cargo test --workspace
@@ -318,59 +450,41 @@ Run the complete verification checklist. Every item must pass.
   ```
   All pass with zero warnings.
 
-- [x] **5.5 — Regression test count.** Compare `cargo test --workspace` output against
-  the Phase 0 baseline. All 311+ (or 473+, depending on baseline) tests must still pass.
-  No test should have been silently dropped.
-
-- [x] **5.6 — Functional smoke tests.**
-  - `Database<MemoryBackend>` round-trips nodes and edges (via doc-test or integration test).
-  - `Database<AnyBackend>` (through `phonograph_std::open_in_memory()`) round-trips
-    nodes and edges.
-  - If persistent backend is available: `phonograph_std::open(path)` creates a file,
-    writes data, reopens, and reads it back.
-  - **Verify:** All smoke tests pass.
-
-### ▸ Phase 5 Gate — MIGRATION COMPLETE
-
-- [x] **All 13 checks from `030-workspace-redesign.md` §17 pass.** The workspace is a
-  clean three-crate layout. Commit with:
+- [ ] **6.2 — `no_std` verification.**
+  ```bash
+  cargo check -p phonograph --no-default-features
+  cargo check -p phonograph_db --no-default-features
   ```
-  chore(workspace): complete three-crate migration to phonograph
+  Both pass. These now compile the full crates under `no_std + alloc` without
+  needing `--features alloc`.
+
+- [ ] **6.3 — Regression test count.**
+  Compare `cargo test --workspace` output against the Phase 0 baseline. All
+  previously passing tests must still pass. New tests from Phase 3 should appear
+  in the count.
+
+- [ ] **6.4 — Confirm no remaining audit artifacts.**
+  ```bash
+  grep -rn 'cfg.*feature.*alloc' crates/phonograph/src/ crates/phonograph_db/src/
+  grep -rn 'rust-version' crates/*/Cargo.toml Cargo.toml
+  grep -rn 'edition = "2021"' crates/*/Cargo.toml Cargo.toml
   ```
+  All three commands return empty.
 
----
+- [ ] **6.5 — Examples still run.**
+  ```bash
+  cargo run -p phonograph_std --example basic_usage
+  cargo run -p phonograph_std --example owl_lite_ontology
+  ```
+  Both succeed without panics.
 
-## Pitfalls & Reminders
+### ▸ Phase 6 Gate — TASK COMPLETE
 
-These are recurring gotchas from the design doc and the existing codebase. Keep them
-in mind throughout the migration.
-
-1. **`StorageError` name collision (R17).** The backend *trait* is now `BackendError`.
-   The error *struct* is `StorageError`. Both live in `phonograph_db` but in different
-   modules (`backend::BackendError` vs `error::StorageError`). Do not confuse them.
-
-2. **`spin::Mutex` is not re-entrant.** The current code has careful lock ordering
-   (`storage` → `write_mutex` → `current_snapshot`). Preserve this ordering when
-   moving to `spin`.
-
-3. **`alloc::sync::Arc` requires the `alloc` feature.** Ensure `Arc` comes from
-   `alloc::sync`, not `std::sync`, in `phonograph_db`.
-
-4. **`DatabaseInner` currently uses `unsafe impl Send/Sync`.** After generifying
-   over `B: StorageBackend`, verify these impls are still sound (or remove them
-   if the compiler can derive them).
-
-5. **`MemoryBackend` snapshot helpers use `std::fs`.** The `save_to_file` and
-   `load_from_file` methods must remain gated behind `#[cfg(feature = "std")]`
-   in `phonograph_db`, or move to `phonograph_std`.
-
-6. **Tests reference `graph_db::` paths.** A bulk find-and-replace will be needed
-   in Phase 4. Be careful not to break doc-tests in the core crate whose paths
-   changed from `graph_db_core::` to `phonograph::`.
-
-7. **The `Cargo.lock` will change significantly.** New dependencies (`spin`,
-   `hashbrown`) and renamed crates will cause a large diff. This is expected.
-
-8. **Keep the workspace compiling per-crate between gates.** Full workspace
-   compilation breaks after Phase 1 and is not restored until Phase 4. During
-   that interval, always verify using per-crate `cargo check -p <crate>`.
+- [ ] **All verification checks from Phase 6 pass.**
+  Write a completion report to `archive/completion-reports/31-cleanup-hardening.md`
+  documenting:
+  - Status
+  - What was changed (summary)
+  - Test count before and after
+  - Files modified
+  - Residual concerns (if any)
