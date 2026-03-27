@@ -492,7 +492,7 @@ impl BTree {
             allocated.push(pid);
         }
 
-        let chain_pages = OverflowPage::build_chain(&page_ids, txn_id, value, self.config.page_size);
+        let chain_pages = OverflowPage::build_chain(&page_ids, txn_id, value, self.config.page_size)?;
 
         for (i, page_data) in chain_pages.iter().enumerate() {
             let frame = pool.new_page(page_ids[i], backend)?;

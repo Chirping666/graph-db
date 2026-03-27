@@ -335,7 +335,7 @@ This phase converts remaining `assert!`/`panic!` in public library methods to pr
 
   **Verify:** List is complete and categorized.
 
-- [ ] **4.2 — Convert `OverflowPage::build` and `build_chain` panics.**
+- [x] **4.2 — Convert `OverflowPage::build` and `build_chain` panics.**
   `OverflowPage::build` currently panics via `assert!` if `data.len() > max_payload`.
   `OverflowPage::build_chain` panics if `page_ids` is empty or insufficient.
 

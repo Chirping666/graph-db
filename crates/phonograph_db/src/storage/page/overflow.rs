@@ -94,22 +94,27 @@ impl OverflowPage {
     ///
     /// Returns a `Vec<u8>` of exactly `page_size` bytes.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics if `data.len()` exceeds [`max_payload`](Self::max_payload).
+    /// Returns an error if `data.len()` exceeds [`max_payload`](Self::max_payload).
     pub fn build(
         page_id: PageId,
         txn_id: u64,
         next_page: PageId,
         data: &[u8],
         page_size: usize,
-    ) -> Vec<u8> {
+    ) -> Result<Vec<u8>, StorageError> {
         let max = Self::max_payload(page_size);
-        assert!(
-            data.len() <= max,
-            "overflow data length {} exceeds max payload {max}",
-            data.len()
-        );
+        if data.len() > max {
+            return Err(StorageError {
+                message: format!(
+                    "overflow data length {} exceeds max payload {max}",
+                    data.len()
+                ),
+                #[cfg(feature = "std")]
+                source: None,
+            });
+        }
 
         let mut page = vec![0u8; page_size];
 
@@ -131,7 +136,7 @@ impl OverflowPage {
         let checksum = CommonPageHeader::compute_checksum(&page);
         page[20..24].copy_from_slice(&checksum.to_le_bytes());
 
-        page
+        Ok(page)
     }
 
     /// Returns the maximum payload bytes per overflow page.
@@ -144,22 +149,27 @@ impl OverflowPage {
     /// Each `page_ids[i]` is assigned to one page in the chain, linked
     /// sequentially. Returns one page image per entry.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics if `page_ids` is empty or insufficient for the data.
+    /// Returns an error if `page_ids` is empty or insufficient for the data.
     pub fn build_chain(
         page_ids: &[PageId],
         txn_id: u64,
         data: &[u8],
         page_size: usize,
-    ) -> Vec<Vec<u8>> {
+    ) -> Result<Vec<Vec<u8>>, StorageError> {
         let max = Self::max_payload(page_size);
         let needed = data.len().div_ceil(max);
-        assert!(
-            page_ids.len() >= needed,
-            "need {needed} overflow pages but only {} IDs provided",
-            page_ids.len()
-        );
+        if page_ids.len() < needed {
+            return Err(StorageError {
+                message: format!(
+                    "need {needed} overflow pages but only {} IDs provided",
+                    page_ids.len()
+                ),
+                #[cfg(feature = "std")]
+                source: None,
+            });
+        }
 
         let mut pages = Vec::with_capacity(needed);
         let mut offset = 0;
@@ -172,11 +182,11 @@ impl OverflowPage {
             } else {
                 PageId::NULL
             };
-            pages.push(Self::build(page_ids[i], txn_id, next_page, chunk, page_size));
+            pages.push(Self::build(page_ids[i], txn_id, next_page, chunk, page_size)?);
             offset = end;
         }
 
-        pages
+        Ok(pages)
     }
 
     /// Reads an overflow chain from the backend, reconstructing the full data.
@@ -235,7 +245,7 @@ mod tests {
         let data = b"hello overflow world";
         let page_data = OverflowPage::build(
             PageId(10), 1, PageId::NULL, data, DEFAULT_PAGE_SIZE,
-        );
+        ).unwrap();
 
         assert_eq!(page_data.len(), DEFAULT_PAGE_SIZE);
         CommonPageHeader::validate_checksum(&page_data).unwrap();
@@ -254,7 +264,7 @@ mod tests {
         let total_len = max * 2 + 100;
         let data: Vec<u8> = (0..total_len).map(|i| (i % 256) as u8).collect();
 
-        let pages = OverflowPage::build_chain(&page_ids, 1, &data, DEFAULT_PAGE_SIZE);
+        let pages = OverflowPage::build_chain(&page_ids, 1, &data, DEFAULT_PAGE_SIZE).unwrap();
         assert_eq!(pages.len(), 3);
 
         // Verify linking
@@ -274,7 +284,7 @@ mod tests {
         let total_len = max * 2 + 100;
         let data: Vec<u8> = (0..total_len).map(|i| (i % 256) as u8).collect();
 
-        let pages = OverflowPage::build_chain(&page_ids, 1, &data, DEFAULT_PAGE_SIZE);
+        let pages = OverflowPage::build_chain(&page_ids, 1, &data, DEFAULT_PAGE_SIZE).unwrap();
 
         // Write pages to a TestBackend
         let mut backend = TestBackend::new();
@@ -299,7 +309,7 @@ mod tests {
         let data = b"some data";
         let page_data = OverflowPage::build(
             PageId(10), 1, PageId::NULL, data, DEFAULT_PAGE_SIZE,
-        );
+        ).unwrap();
 
         let mut backend = TestBackend::new();
         let offset = 10 * DEFAULT_PAGE_SIZE as u64;
