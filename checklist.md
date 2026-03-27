@@ -183,7 +183,7 @@ direction), then `phonograph_db` (depends on `phonograph`), then update
 
 ### ▸ Phase 2 Gate
 
-- [ ] **Phase 2 gate:**
+- [x] **Phase 2 gate:**
   ```bash
   cargo check --workspace
   cargo check -p phonograph --no-default-features
