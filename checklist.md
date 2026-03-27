@@ -88,7 +88,7 @@ This phase removes the unnecessary `alloc` feature from `phonograph` and
 direction), then `phonograph_db` (depends on `phonograph`), then update
 `phonograph_std` and any workspace-level references.
 
-- [ ] **2.1 — Simplify `phonograph` feature flags.**
+- [x] **2.1 — Simplify `phonograph` feature flags.**
   In `crates/phonograph/Cargo.toml`:
   - Change the `[features]` section to:
     ```toml

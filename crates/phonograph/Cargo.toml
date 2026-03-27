@@ -11,8 +11,4 @@ categories = ["data-structures", "no-std"]
 
 [features]
 default = ["std"]
-std = ["alloc"]
-alloc = []
-
-[dev-dependencies]
-tempfile = "3"
+std = []
