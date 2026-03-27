@@ -794,6 +794,26 @@ fn e2e_moderately_large_property_value() {
 }
 
 #[test]
+#[should_panic(expected = "subtract with overflow")]
+fn e2e_large_value_panics_reproduce() {
+    let db = open_mem_db();
+    let mut wtx = db.write_txn().unwrap();
+    let nt = wtx
+        .register_type(TypeDefinitionBuilder::node_type("Big").build())
+        .unwrap();
+    let data_key = wtx.get_or_create_property_key("data").unwrap();
+    let big = vec![0xABu8; 10_000];
+    wtx.insert_node(
+        NodeBuilder::new()
+            .type_label(nt)
+            .property(data_key, Value::Bytes(big))
+            .build(),
+    )
+    .unwrap();
+    wtx.commit().unwrap();
+}
+
+#[test]
 fn e2e_validate_all_retroactive() {
     let db = open_mem_db();
 

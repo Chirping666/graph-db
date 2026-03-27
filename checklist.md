@@ -208,7 +208,7 @@ a subtraction overflow panic in the leaf page handling code.
 path — when a record's serialized value exceeds the inline threshold, the code attempts
 to store it inline anyway, causing an arithmetic underflow.
 
-- [ ] **3.1 — Locate and diagnose the exact panic site.**
+- [x] **3.1 — Locate and diagnose the exact panic site.**
   The panic was reported at `leaf.rs:215` (approximate — line numbers may have
   shifted during migration). Reproduce it:
   ```rust
