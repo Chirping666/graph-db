@@ -471,7 +471,7 @@ This phase converts remaining `assert!`/`panic!` in public library methods to pr
   ```
   All three commands return empty.
 
-- [ ] **6.5 — Examples still run.**
+- [x] **6.5 — Examples still run.**
   ```bash
   cargo run -p phonograph_std --example basic_usage
   cargo run -p phonograph_std --example owl_lite_ontology
