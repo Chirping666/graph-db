@@ -143,7 +143,7 @@ direction), then `phonograph_db` (depends on `phonograph`), then update
     ```
   - **Verify:** `cargo check -p phonograph_db` passes.
 
-- [ ] **2.4 — Remove `#[cfg(feature = "alloc")]` gates from `phonograph_db` source.**
+- [x] **2.4 — Remove `#[cfg(feature = "alloc")]` gates from `phonograph_db` source.**
   In `crates/phonograph_db/src/lib.rs`:
   - Remove all `#[cfg(feature = "alloc")]` attributes from `pub mod` declarations,
     `pub use` re-exports, and the `extern crate alloc;` statement.

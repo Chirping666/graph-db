@@ -5,7 +5,6 @@
 //! error types (`SchemaError`, `NotFoundError`, `InferenceError`) are
 //! re-exported from [`phonograph`].
 
-#[cfg(feature = "alloc")]
 use alloc::{string::String, vec::Vec};
 
 use core::fmt;
