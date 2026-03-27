@@ -191,6 +191,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "phonograph_std"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "phonograph",
+ "phonograph_db",
+ "tempfile",
+]
+
+[[package]]
 name = "prettyplease"
 version = "0.2.37"
 source = "registry+https://github.com/rust-lang/crates.io-index"

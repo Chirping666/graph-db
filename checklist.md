@@ -206,7 +206,7 @@ swaps sync primitives, and generifies `Database<B>`.
 
 > **Reference:** `030-workspace-redesign.md` §7, §14 Phase 3
 
-- [ ] **3.1 — Scaffold `phonograph_std` crate.**
+- [x] **3.1 — Scaffold `phonograph_std` crate.**
   - Create `crates/phonograph_std/` with `Cargo.toml` and `src/lib.rs`.
   - `Cargo.toml` per `030` §7: depend on `phonograph` and `phonograph_db`.
     Add `libc` under `[target.'cfg(unix)'.dependencies]`.
@@ -214,7 +214,7 @@ swaps sync primitives, and generifies `Database<B>`.
   - Add `phonograph_std` to workspace `members`.
   - **Verify:** `cargo check -p phonograph_std` passes (empty crate).
 
-- [ ] **3.2 — Move `FileBackend` and create `AnyBackend`.**
+- [x] **3.2 — Move `FileBackend` and create `AnyBackend`.**
   - Move `graph_db/src/backend_std/` → `crates/phonograph_std/src/backend_std/`.
   - Update imports to reference `phonograph_db::backend::*` for the backend traits.
   - Create `crates/phonograph_std/src/any_backend.rs` — move the `AnyBackend` enum
@@ -222,7 +222,7 @@ swaps sync primitives, and generifies `Database<B>`.
     `phonograph_db::backend_mem::MemoryBackend`.
   - **Verify:** `cargo check -p phonograph_std` passes.
 
-- [ ] **3.3 — Add convenience API and re-exports.**
+- [x] **3.3 — Add convenience API and re-exports.**
   In `phonograph_std`'s `lib.rs`:
   - `pub use phonograph::*;` and `pub use phonograph_db::*;` (decision R14).
   - `pub type Database = phonograph_db::Database<AnyBackend>;`
@@ -233,7 +233,7 @@ swaps sync primitives, and generifies `Database<B>`.
 
 ### ▸ Phase 3 Gate
 
-- [ ] **Phase 3 gate — all must pass:**
+- [x] **Phase 3 gate — all must pass:**
   ```bash
   cargo check -p phonograph
   cargo check -p phonograph_db

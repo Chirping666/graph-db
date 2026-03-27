@@ -1,0 +1,19 @@
+[package]
+name = "phonograph_std"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.82"
+description = "std-only extensions for phonograph: file backend, OS locking, and convenience Database type"
+keywords = ["graph-database", "file-backend", "embedded-database"]
+categories = ["database-implementations"]
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+phonograph = { path = "../phonograph" }
+phonograph_db = { path = "../phonograph_db" }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[dev-dependencies]
+tempfile = "3"
