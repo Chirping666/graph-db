@@ -824,6 +824,214 @@ fn e2e_large_value_round_trip() {
 }
 
 #[test]
+fn e2e_large_property_100kb_round_trip() {
+    let db = open_mem_db();
+    let mut wtx = db.write_txn().unwrap();
+    let nt = wtx
+        .register_type(TypeDefinitionBuilder::node_type("Huge").build())
+        .unwrap();
+    let data_key = wtx.get_or_create_property_key("data").unwrap();
+    let big = vec![0xCDu8; 100_000];
+    let n = wtx
+        .insert_node(
+            NodeBuilder::new()
+                .type_label(nt)
+                .property(data_key, Value::Bytes(big.clone()))
+                .build(),
+        )
+        .unwrap();
+    wtx.commit().unwrap();
+
+    let rtx = db.read_txn().unwrap();
+    let node = rtx.get_node(n).unwrap().unwrap();
+    match node.properties.get(&data_key) {
+        Some(Value::Bytes(b)) => {
+            assert_eq!(b.len(), 100_000);
+            assert_eq!(&b[..], &big[..]);
+        }
+        other => panic!("Expected Bytes, got {other:?}"),
+    }
+}
+
+#[test]
+fn e2e_large_property_update_inline_to_overflow() {
+    let db = open_mem_db();
+    let mut wtx = db.write_txn().unwrap();
+    let nt = wtx
+        .register_type(TypeDefinitionBuilder::node_type("N").build())
+        .unwrap();
+    let data_key = wtx.get_or_create_property_key("data").unwrap();
+
+    let small = vec![0x01u8; 50];
+    let n = wtx
+        .insert_node(
+            NodeBuilder::new()
+                .type_label(nt)
+                .property(data_key, Value::Bytes(small))
+                .build(),
+        )
+        .unwrap();
+    wtx.commit().unwrap();
+
+    let big = vec![0x02u8; 10_000];
+    let mut wtx = db.write_txn().unwrap();
+    wtx.set_node_property(n, data_key, Value::Bytes(big.clone()))
+        .unwrap();
+    wtx.commit().unwrap();
+
+    let rtx = db.read_txn().unwrap();
+    let node = rtx.get_node(n).unwrap().unwrap();
+    match node.properties.get(&data_key) {
+        Some(Value::Bytes(b)) => {
+            assert_eq!(b.len(), 10_000);
+            assert_eq!(&b[..], &big[..]);
+        }
+        other => panic!("Expected Bytes, got {other:?}"),
+    }
+}
+
+#[test]
+fn e2e_large_property_update_overflow_to_inline() {
+    let db = open_mem_db();
+    let mut wtx = db.write_txn().unwrap();
+    let nt = wtx
+        .register_type(TypeDefinitionBuilder::node_type("N").build())
+        .unwrap();
+    let data_key = wtx.get_or_create_property_key("data").unwrap();
+
+    let big = vec![0x03u8; 10_000];
+    let n = wtx
+        .insert_node(
+            NodeBuilder::new()
+                .type_label(nt)
+                .property(data_key, Value::Bytes(big))
+                .build(),
+        )
+        .unwrap();
+    wtx.commit().unwrap();
+
+    let small = vec![0x04u8; 50];
+    let mut wtx = db.write_txn().unwrap();
+    wtx.set_node_property(n, data_key, Value::Bytes(small.clone()))
+        .unwrap();
+    wtx.commit().unwrap();
+
+    let rtx = db.read_txn().unwrap();
+    let node = rtx.get_node(n).unwrap().unwrap();
+    match node.properties.get(&data_key) {
+        Some(Value::Bytes(b)) => {
+            assert_eq!(b.len(), 50);
+            assert_eq!(&b[..], &small[..]);
+        }
+        other => panic!("Expected Bytes, got {other:?}"),
+    }
+}
+
+#[test]
+fn e2e_large_property_update_overflow_to_overflow() {
+    let db = open_mem_db();
+    let mut wtx = db.write_txn().unwrap();
+    let nt = wtx
+        .register_type(TypeDefinitionBuilder::node_type("N").build())
+        .unwrap();
+    let data_key = wtx.get_or_create_property_key("data").unwrap();
+
+    let v1 = vec![0x05u8; 10_000];
+    let n = wtx
+        .insert_node(
+            NodeBuilder::new()
+                .type_label(nt)
+                .property(data_key, Value::Bytes(v1))
+                .build(),
+        )
+        .unwrap();
+    wtx.commit().unwrap();
+
+    let v2 = vec![0x06u8; 20_000];
+    let mut wtx = db.write_txn().unwrap();
+    wtx.set_node_property(n, data_key, Value::Bytes(v2.clone()))
+        .unwrap();
+    wtx.commit().unwrap();
+
+    let rtx = db.read_txn().unwrap();
+    let node = rtx.get_node(n).unwrap().unwrap();
+    match node.properties.get(&data_key) {
+        Some(Value::Bytes(b)) => {
+            assert_eq!(b.len(), 20_000);
+            assert_eq!(&b[..], &v2[..]);
+        }
+        other => panic!("Expected Bytes, got {other:?}"),
+    }
+}
+
+#[test]
+fn e2e_large_property_delete_node_with_overflow() {
+    let db = open_mem_db();
+    let mut wtx = db.write_txn().unwrap();
+    let nt = wtx
+        .register_type(TypeDefinitionBuilder::node_type("N").build())
+        .unwrap();
+    let data_key = wtx.get_or_create_property_key("data").unwrap();
+
+    let big = vec![0x07u8; 10_000];
+    let n = wtx
+        .insert_node(
+            NodeBuilder::new()
+                .type_label(nt)
+                .property(data_key, Value::Bytes(big))
+                .build(),
+        )
+        .unwrap();
+    wtx.commit().unwrap();
+
+    let mut wtx = db.write_txn().unwrap();
+    wtx.delete_node(n).unwrap();
+    wtx.commit().unwrap();
+
+    let rtx = db.read_txn().unwrap();
+    assert!(rtx.get_node(n).unwrap().is_none());
+}
+
+#[test]
+fn e2e_large_property_multiple_overflow_nodes() {
+    let db = open_mem_db();
+    let mut wtx = db.write_txn().unwrap();
+    let nt = wtx
+        .register_type(TypeDefinitionBuilder::node_type("N").build())
+        .unwrap();
+    let data_key = wtx.get_or_create_property_key("data").unwrap();
+
+    let mut node_ids = Vec::new();
+    let mut values = Vec::new();
+    for i in 0u8..10 {
+        let v = vec![i; 5_000];
+        let n = wtx
+            .insert_node(
+                NodeBuilder::new()
+                    .type_label(nt)
+                    .property(data_key, Value::Bytes(v.clone()))
+                    .build(),
+            )
+            .unwrap();
+        node_ids.push(n);
+        values.push(v);
+    }
+    wtx.commit().unwrap();
+
+    let rtx = db.read_txn().unwrap();
+    for (i, &n) in node_ids.iter().enumerate() {
+        let node = rtx.get_node(n).unwrap().unwrap();
+        match node.properties.get(&data_key) {
+            Some(Value::Bytes(b)) => {
+                assert_eq!(b.len(), 5_000);
+                assert_eq!(&b[..], &values[i][..]);
+            }
+            other => panic!("Node {i}: expected Bytes, got {other:?}"),
+        }
+    }
+}
+
+#[test]
 fn e2e_validate_all_retroactive() {
     let db = open_mem_db();
 

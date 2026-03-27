@@ -265,7 +265,7 @@ to store it inline anyway, causing an arithmetic underflow.
 
   **Verify:** The panic from step 3.1 no longer occurs.
 
-- [ ] **3.3 — Add tests for large property values.**
+- [x] **3.3 — Add tests for large property values.**
   Add integration tests (in `phonograph_std/tests/` or as a new test file):
 
   1. **10 KB value round-trip:** Insert a node with `Value::Bytes(vec![0xAB; 10_000])`,
