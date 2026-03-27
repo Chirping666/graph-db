@@ -298,7 +298,7 @@ to store it inline anyway, causing an arithmetic underflow.
 
 ### ▸ Phase 3 Gate
 
-- [ ] **Phase 3 gate:**
+- [x] **Phase 3 gate:**
   ```bash
   cargo test --workspace
   ```
