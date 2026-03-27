@@ -450,7 +450,7 @@ This phase converts remaining `assert!`/`panic!` in public library methods to pr
   ```
   All pass with zero warnings.
 
-- [ ] **6.2 — `no_std` verification.**
+- [x] **6.2 — `no_std` verification.**
   ```bash
   cargo check -p phonograph --no-default-features
   cargo check -p phonograph_db --no-default-features
