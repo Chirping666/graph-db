@@ -163,7 +163,7 @@ direction), then `phonograph_db` (depends on `phonograph`), then update
   ```
   Both pass.
 
-- [ ] **2.5 — Update `phonograph_std` dependency specification.**
+- [x] **2.5 — Update `phonograph_std` dependency specification.**
   In `crates/phonograph_std/Cargo.toml`:
   - If the `phonograph` or `phonograph_db` dependencies reference `features = ["alloc"]`,
     remove that. The `alloc` feature no longer exists.
