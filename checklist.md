@@ -463,7 +463,7 @@ This phase converts remaining `assert!`/`panic!` in public library methods to pr
   previously passing tests must still pass. New tests from Phase 3 should appear
   in the count.
 
-- [ ] **6.4 — Confirm no remaining audit artifacts.**
+- [x] **6.4 — Confirm no remaining audit artifacts.**
   ```bash
   grep -rn 'cfg.*feature.*alloc' crates/phonograph/src/ crates/phonograph_db/src/
   grep -rn 'rust-version' crates/*/Cargo.toml Cargo.toml
