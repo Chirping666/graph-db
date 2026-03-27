@@ -1,102 +1,36 @@
-# CLAUDE.md — Task 31: Cleanup, Hardening & Edition Upgrade
+# CLAUDE.md — Project Root
 
-**Project:** Phonograph — Embedded Graph Database with Extensible Schema & Pluggable Inference  
-**Task:** 31  
-**Scope:** Edition upgrade, feature flag simplification, crash bug fix, panic-to-Result conversions, dead code removal  
-**Status:** Pending  
-**Depends on:** Workspace redesign (Tasks 30, migration complete)
+**Project:** Phonograph — Embedded Graph Database with Extensible Schema & Pluggable Inference
 
 ---
 
-## Orientation
+## Overview
 
-This is a hardening task that addresses structural and safety issues accumulated during
-the initial implementation and workspace migration. The codebase currently compiles, passes
-all tests, and is functionally complete — but carries unnecessary complexity from Claude Code
-decisions that should not have been made, plus one crash bug that was documented as a "known
-limitation" rather than fixed.
+Phonograph is a three-crate Rust workspace implementing an embedded typed property graph database:
 
-**This task does NOT add features.** It removes unnecessary machinery, fixes a crash, and
-upgrades the edition. The public API surface does not change. All existing tests must
-continue to pass (with adjustments for edition syntax and removed feature gates).
+| Crate | Purpose | `no_std`? |
+|-------|---------|-----------|
+| `phonograph` | Graph vocabulary: core types, traits, errors | yes (`no_std + alloc`) |
+| `phonograph_db` | Database engine: storage, B+ trees, transactions, buffer pool | yes (`no_std + alloc`) |
+| `phonograph_std` | OS/platform layer: `FileBackend`, file locking, convenience API | no (always `std`) |
 
-**What this task does:**
+The design document `030-workspace-redesign.md` is the architectural source of truth for the
+workspace structure. Previous task directories and completion reports are in `archive/`.
 
-1. **Edition upgrade:** `2021` → `2024` across the workspace, remove `rust-version` fields
-2. **Feature flag simplification:** Remove the `std`/`alloc` cascade from `phonograph` and
-   `phonograph_db` — `alloc` becomes unconditional
-3. **Crash bug fix:** Large property values (>~1 KB) cause a panic in leaf page overflow
-   dispatch (`leaf.rs:215`)
-4. **Panic-to-Result conversions:** Replace remaining `assert!`/`panic!` in public library
-   APIs with proper `Result` returns
-5. **Dead code cleanup:** Remove orphaned `#[cfg(feature = "alloc")]` gates, spurious
-   dev-dependencies, and let-chain→nested-if workarounds from the edition 2021 downgrade
+Always use the latest crate version for dependencies.
 
-**What this task does NOT do:**
+### Feature Flags
 
-- Add new features (batch insert, property indexes, write lock timeout, streaming iterators)
-- Change the public API signatures (except where `assert!` → `Result` improves a return type)
-- Modify the on-disk format
-- Add or remove crates from the workspace
-
----
-
-## Required Reading
-
-Before making any changes, read these documents:
-
-1. **`030-workspace-redesign.md`** — The architectural source of truth for the three-crate
-   workspace. Sections §5 (phonograph), §6 (phonograph\_db), §7 (phonograph\_std), §12
-   (feature flags). Understand the current structure so you modify it correctly.
-
-2. **`archive/audits/2026-03-26-codebase-audit.md`** — The prior codebase audit. Section 3
-   (Safety, Error Handling & Panics) lists all panic sites. Some were fixed in Task 30;
-   this task addresses the remainder.
-
-3. **`archive/completion-reports/28-integration-testing.md`** — Documents the large property
-   value panic (Bug #1) and the extension name persistence gap (Bug #2). Bug #1 is in scope
-   for this task. Bug #2 is out of scope.
-
-4. **`archive/completion-reports/29-documentation-publish.md`** — Documents the edition
-   2024→2021 downgrade and the 5 let-chain refactoring sites that need to be reverted.
-
-5. **`archive/completion-reports/30-audit-fixes.md`** — Documents which panic sites were
-   already fixed. Do not duplicate this work.
-
-6. **`CLAUDE.md` (project root)** — Current project-wide rules. This task will update
-   CLAUDE.md itself upon completion (feature flag rules, edition references, MSRV references).
-
-7. **`checklist.md` (this directory)** — The ordered implementation steps. Execute sequentially.
-
----
-
-## Key Decisions (Settled)
-
-These decisions are made. Do not revisit them.
-
-### D1: Edition 2024, no `rust-version` field
-
-Set `edition = "2024"` in the workspace `Cargo.toml` `[workspace.package]` table and in
-each per-crate `Cargo.toml`. Remove all `rust-version` fields entirely — there is no MSRV
-policy. Users are expected to use the latest stable Rust toolchain.
-
-### D2: `alloc` is unconditional in `phonograph` and `phonograph_db`
-
-Both `phonograph` and `phonograph_db` are `no_std + alloc` crates. The `alloc` feature
-gate was always required for the crates to be useful — without it, `phonograph` exports
-nothing meaningful (no types, no schema, no errors), and `phonograph_db` exports nothing
-at all.
-
-The new feature flag structure:
+Both `phonograph` and `phonograph_db` are `no_std + alloc` crates. The `alloc` dependency is
+unconditional — there is no `alloc` feature flag. The only feature flag is `std` (default on),
+which enables `std::error::Error` impls and similar std-only functionality.
 
 **`phonograph`:**
 ```toml
 [features]
 default = ["std"]
-std = []       # Enables std::error::Error impls only
+std = []
 ```
-
-No `alloc` feature. The crate unconditionally uses `extern crate alloc`.
 
 **`phonograph_db`:**
 ```toml
@@ -105,95 +39,96 @@ default = ["std"]
 std = ["phonograph/std"]
 ```
 
-No `alloc` feature. The crate unconditionally uses `extern crate alloc`.
-
-**`phonograph_std`:** Unchanged (no feature flags — always `std`).
-
-### D3: Revert let-chain refactors
-
-The 5 sites where let-chains were refactored to nested `if` blocks (for edition 2021
-compatibility) must be reverted to their original let-chain form. Edition 2024 supports
-let-chains natively.
-
-Known sites:
-- `crates/phonograph_db/src/storage/btree/cursor.rs` (line ~160)
-- `crates/phonograph_db/src/db/database.rs` (line ~405)
-- `crates/phonograph_db/src/db/write_txn.rs` (line ~938)
-- `crates/phonograph_std/tests/inference_tests.rs` (line ~811)
-- `crates/phonograph_std/tests/e2e_integration.rs` (line ~563)
-
-These are approximate line numbers — locate the nested `if` patterns and restore them to
-`if let ... && ...` chains.
-
-### D4: The overflow page dispatch bug is a crash bug, not a "limitation"
-
-The panic at `leaf.rs:215` when inserting values >~1 KB is not an acceptable known
-limitation. The overflow page infrastructure already exists (overflow pages can be built,
-chained, parsed, and read back). The bug is that the B-tree insert path does not dispatch
-to overflow when a value exceeds the inline threshold. This must be fixed.
-
-### D5: Public API methods must not panic on user-controllable input
-
-Any `assert!`, `panic!`, or `unwrap()` in a public method that can be triggered by
-user-provided data (not internal invariant violations) must be converted to `Result`.
-Internal `debug_assert!` calls and test-only `unwrap()` are acceptable.
+**`phonograph_std`:** No feature flags (always `std`).
 
 ---
 
-## Definition of Done
+## Project-Wide Rules
 
-All of the following must be true:
+### Rule 1: No external database crate dependencies
 
-1. **`edition = "2024"` in all `Cargo.toml` files.** No `rust-version` field anywhere.
+Do not depend on SQLite, sled, redb, RocksDB, or any other database crate.
+Allowed external dependencies are listed in `030-workspace-redesign.md` §13.
 
-2. **No `alloc` feature in `phonograph` or `phonograph_db`.** Both crates unconditionally
-   use `extern crate alloc`. The only feature flag is `std` (default on).
+### Rule 2: `no_std + alloc` boundary
 
-3. **All `#[cfg(feature = "alloc")]` gates removed** from `phonograph` and `phonograph_db`
-   source files. Modules, re-exports, and compile-test assertions are unconditional.
+- `phonograph` must compile with zero non-dev dependencies under `no_std + alloc`.
+  Both crates use `#![cfg_attr(not(feature = "std"), no_std)]` and unconditional `extern crate alloc`.
+- `phonograph_db` must compile under `no_std + alloc` (using `spin` for sync, `hashbrown` for maps).
+- `phonograph_std` is always `std`.
 
-4. **Large property values (10 KB+) round-trip without panic.** A test inserts a node with
-   `Value::Bytes(vec![0u8; 10_000])`, commits, reads it back, and verifies exact match.
+Verification:
+```bash
+cargo check -p phonograph --no-default-features
+cargo check -p phonograph_db --no-default-features
+```
 
-5. **No `assert!`, `panic!`, or `unwrap()` in public library methods** on user-controllable
-   input. (Mutex lock unwraps after the spin migration may be acceptable if `spin::Mutex::lock`
-   returns the guard directly without `Result`. Verify this.)
+### Rule 3: No baked-in ontology model
 
-6. **Let-chain syntax restored** at all 5 sites.
+The crate provides **mechanism**, not **policy**. No OWL, RDF, SKOS, or other ontology
+vocabulary is built in. The type system, constraint validators, and inference rules are
+user-extensible extension points.
 
-7. **`tempfile` removed from `phonograph` dev-dependencies.**
+### Rule 4: Documentation on every public item
 
-8. **All tests pass:**
-   ```bash
-   cargo test --workspace
-   cargo clippy --workspace --all-targets -- -D warnings
-   cargo doc --workspace --no-deps
-   ```
+Every `pub` item must have a doc comment. Methods should document errors, panics, and
+performance characteristics where relevant. Verify with `cargo doc --workspace --no-deps`.
 
-9. **`no_std` verification passes:**
-   ```bash
-   cargo check -p phonograph --no-default-features
-   cargo check -p phonograph_db --no-default-features
-   ```
-   Note: these now compile without `--features alloc` since `alloc` is unconditional.
+### Rule 5: Test coverage
 
-10. **CHANGELOG.md updated:** Remove "Large property values (>~1 KB) may cause panics"
-    from Known Limitations. Add a Fixed section if appropriate.
+- Unit tests live in `#[cfg(test)]` modules alongside the code they test.
+- Integration tests live in `tests/` per-crate.
 
-11. **README.md updated:** Remove "Large property values (>~1 KB) are not supported in v0.1"
-    from Known Limitations.
+### Rule 6: Code style
 
-12. **Project root `CLAUDE.md` updated:** Feature flag rules reflect the new simplified
-    structure. No references to `rust-version` or MSRV.
+- Edition 2024. No MSRV policy — use the latest stable Rust toolchain.
+- `rustfmt` defaults (no custom `.rustfmt.toml` unless necessary).
+- No `unwrap()` in library code (tests are fine). Public API methods return `Result` on
+  user-controllable input — no `assert!`/`panic!` for user-triggerable conditions.
+- Minimize `unsafe`. Each `unsafe` block must have a `// SAFETY:` comment.
+- Byte layout: little-endian integers, 2-byte or 4-byte length prefixes for variable fields.
 
 ---
 
-## Out of Scope
+## Verification Checklist
 
-- **New features:** Property value indexes, streaming iterators, batch insert, write lock
-  timeout. These are real limitations but are future work, not hardening.
-- **Extension name persistence gap** (Bug #2 from Task 28). This is a correctness bug but
-  requires design decisions about the persistence protocol. Separate task.
-- **Splitting large files** (`write_txn.rs`, `serialization.rs`). These are refactoring
-  tasks, not hardening.
-- **Adding new tests** beyond those needed to verify the fixes in this task.
+| # | Check | Command |
+|---|-------|---------|
+| 1 | `phonograph` compiles `no_std + alloc` | `cargo check -p phonograph --no-default-features` |
+| 2 | `phonograph` has zero non-dev dependencies | Inspect `Cargo.toml` |
+| 3 | `phonograph` contains NO storage/backend/transaction concepts | `grep -r "ReadAt\|WriteAt\|StorageBackend\|StorageError\|TransactionError" crates/phonograph/src/` → empty |
+| 4 | `phonograph_db` compiles `no_std + alloc` | `cargo check -p phonograph_db --no-default-features` |
+| 5 | `phonograph_db` has no ungated `use std::` | `grep -r "use std::" crates/phonograph_db/src/` → empty or `#[cfg]`-gated |
+| 6 | `phonograph_std` compiles | `cargo check -p phonograph_std` |
+| 7 | Full workspace builds | `cargo build --workspace` |
+| 8 | All tests pass | `cargo test --workspace` |
+| 9 | No clippy warnings | `cargo clippy --workspace --all-targets -- -D warnings` |
+| 10 | Docs build | `cargo doc --workspace --no-deps` |
+
+---
+
+## Key Design Decisions
+
+These decisions are **settled**. Do not re-litigate them.
+
+- **R1:** Core crate name is `phonograph`.
+- **R4:** Backend traits (`ReadAt`, `WriteAt`, `StorageBackend`) live in `phonograph_db`, not `phonograph`.
+- **R5:** `MemoryBackend` lives in `phonograph_db`.
+- **R6:** The unified `Error` enum lives in `phonograph_db`.
+- **R8:** `phonograph` exports only individual error types (`SchemaError`, `NotFoundError`, `InferenceError`).
+- **R9:** Sync primitives use `spin` unconditionally in `phonograph_db`.
+- **R10:** `HashMap` replacement is `hashbrown`.
+- **R11:** `Database` is generic: `Database<B: StorageBackend>`.
+- **R13:** `AnyBackend` lives in `phonograph_std`.
+- **R14:** Each crate re-exports the one below it.
+- **R17:** The `StorageError` backend trait is renamed to `BackendError` to avoid collision with the `error::StorageError` struct.
+
+---
+
+## Residual Concerns
+
+1. `spin` priority inversion on preemptive OS — acceptable for v1, opt-in `std-sync` feature later.
+2. `crc32fast` loses hardware acceleration on `no_std` — acceptable.
+3. `hashbrown` `ahash` uses fixed seed on `no_std` — fine for page table keys.
+4. Engine requires `alloc` — correct trade-off.
+5. Test infrastructure split — ensure no coverage gaps between `phonograph_db` and `phonograph_std`.

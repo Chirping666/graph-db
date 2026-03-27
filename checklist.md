@@ -418,7 +418,7 @@ This phase converts remaining `assert!`/`panic!` in public library methods to pr
 
   **Verify:** README.md is accurate.
 
-- [ ] **5.3 — Update project root `CLAUDE.md`.**
+- [x] **5.3 — Update project root `CLAUDE.md`.**
   - Update Rule 2 (`no_std + alloc` boundary): remove references to the `alloc` feature
     flag. The boundary is now just `#![cfg_attr(not(feature = "std"), no_std)]` +
     unconditional `extern crate alloc`.
