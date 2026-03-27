@@ -169,7 +169,7 @@ direction), then `phonograph_db` (depends on `phonograph`), then update
     remove that. The `alloc` feature no longer exists.
   - **Verify:** `cargo check -p phonograph_std` passes.
 
-- [ ] **2.6 — Update workspace-level references.**
+- [x] **2.6 — Update workspace-level references.**
   In the workspace root `Cargo.toml`, if `[workspace.dependencies]` specifies
   `features = ["alloc"]` for `phonograph` or `phonograph_db`, remove it.
 
