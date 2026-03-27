@@ -11,6 +11,7 @@ use crate::storage::allocator::PageAllocator;
 use crate::storage::buffer_pool::BufferPool;
 use crate::storage::page::interior::{InteriorCell, InteriorPage};
 use crate::storage::page::leaf::{LeafCell, LeafCellValue, LeafPage};
+use crate::storage::page::overflow::OverflowPage;
 use crate::storage::page::PageId;
 
 use super::cow::CowResult;
@@ -27,6 +28,17 @@ struct PromotedKey {
 }
 
 use super::PathEntry;
+
+/// Total leaf page header size: common(24) + subheader(20) = 44.
+const LEAF_HEADER_SIZE: usize = 44;
+
+/// Maximum inline cell size for a leaf page.
+///
+/// Per `008-file-format-spec.md` §8.2, a cell triggers overflow when
+/// `total_cell_size > (page_size - 44) / 4`.
+fn overflow_cell_threshold(page_size: usize) -> usize {
+    (page_size - LEAF_HEADER_SIZE) / 4
+}
 
 #[allow(clippy::too_many_arguments)]
 impl BTree {
@@ -56,10 +68,8 @@ impl BTree {
         // Empty tree: create a new leaf root
         if root.is_null() {
             let new_root_id = allocator.allocate_page();
-            let cells = [LeafCell {
-                key: key.to_vec(),
-                value: LeafCellValue::Inline(value.to_vec()),
-            }];
+            let cell = self.create_leaf_cell(key, value, pool, allocator, backend, txn_id, &mut allocated)?;
+            let cells = [cell];
             let page_data = LeafPage::build(
                 new_root_id,
                 txn_id,
@@ -93,13 +103,12 @@ impl BTree {
 
         // Check for duplicate key and replace
         if let Some(existing) = leaf.delete_cell(key) {
-            let _ = existing; // old value discarded
+            if let LeafCellValue::Overflow { overflow_page_id, .. } = &existing.value {
+                self.free_overflow_chain(*overflow_page_id, pool, backend, &mut freed)?;
+            }
         }
 
-        let new_cell = LeafCell {
-            key: key.to_vec(),
-            value: LeafCellValue::Inline(value.to_vec()),
-        };
+        let new_cell = self.create_leaf_cell(key, value, pool, allocator, backend, txn_id, &mut allocated)?;
 
         // Try to insert into the leaf
         if leaf.insert_cell(new_cell.clone(), self.config.page_size) {
@@ -450,4 +459,75 @@ impl BTree {
         })
     }
 
+    /// Creates a leaf cell, dispatching to overflow pages if the value
+    /// exceeds the inline cell threshold.
+    fn create_leaf_cell<B: ReadAt + WriteAt + backend::Durability>(
+        &self,
+        key: &[u8],
+        value: &[u8],
+        pool: &mut BufferPool,
+        allocator: &mut PageAllocator,
+        backend: &mut B,
+        txn_id: u64,
+        allocated: &mut Vec<PageId>,
+    ) -> Result<LeafCell, StorageError> {
+        let inline_size = 4 + key.len() + value.len();
+        let threshold = overflow_cell_threshold(self.config.page_size);
+
+        if inline_size <= threshold {
+            return Ok(LeafCell {
+                key: key.to_vec(),
+                value: LeafCellValue::Inline(value.to_vec()),
+            });
+        }
+
+        // Dispatch to overflow pages
+        let max_payload = OverflowPage::max_payload(self.config.page_size);
+        let num_pages = value.len().div_ceil(max_payload);
+
+        let mut page_ids = Vec::with_capacity(num_pages);
+        for _ in 0..num_pages {
+            let pid = allocator.allocate_page();
+            page_ids.push(pid);
+            allocated.push(pid);
+        }
+
+        let chain_pages = OverflowPage::build_chain(&page_ids, txn_id, value, self.config.page_size);
+
+        for (i, page_data) in chain_pages.iter().enumerate() {
+            let frame = pool.new_page(page_ids[i], backend)?;
+            pool.get_page_data_mut(frame)[..self.config.page_size]
+                .copy_from_slice(page_data);
+            pool.unpin_page(frame, true);
+        }
+
+        Ok(LeafCell {
+            key: key.to_vec(),
+            value: LeafCellValue::Overflow {
+                overflow_page_id: page_ids[0],
+                total_overflow_len: value.len() as u32,
+            },
+        })
+    }
+
+    /// Walks an overflow page chain and adds all page IDs to the freed list.
+    fn free_overflow_chain<B: ReadAt + WriteAt + backend::Durability>(
+        &self,
+        first_page: PageId,
+        pool: &mut BufferPool,
+        backend: &mut B,
+        freed: &mut Vec<PageId>,
+    ) -> Result<(), StorageError> {
+        let mut current = first_page;
+        while !current.is_null() {
+            freed.push(current);
+            let frame = pool.fetch_page(current, backend)?;
+            let page_data = pool.get_page_data(frame);
+            let overflow = OverflowPage::parse(page_data, self.config.page_size)?;
+            let next = overflow.next_page;
+            pool.unpin_page(frame, false);
+            current = next;
+        }
+        Ok(())
+    }
 }

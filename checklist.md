@@ -229,7 +229,7 @@ to store it inline anyway, causing an arithmetic underflow.
 
   **Verify:** You can reproduce the panic and understand the root cause.
 
-- [ ] **3.2 — Implement overflow dispatch in the B-tree insert path.**
+- [x] **3.2 — Implement overflow dispatch in the B-tree insert path.**
   The fix requires the B-tree insert code to detect when a serialized record value
   exceeds the inline leaf cell threshold and dispatch to overflow page storage
   instead. This involves:

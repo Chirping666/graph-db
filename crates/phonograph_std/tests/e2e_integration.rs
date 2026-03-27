@@ -794,8 +794,7 @@ fn e2e_moderately_large_property_value() {
 }
 
 #[test]
-#[should_panic(expected = "subtract with overflow")]
-fn e2e_large_value_panics_reproduce() {
+fn e2e_large_value_round_trip() {
     let db = open_mem_db();
     let mut wtx = db.write_txn().unwrap();
     let nt = wtx
@@ -803,14 +802,25 @@ fn e2e_large_value_panics_reproduce() {
         .unwrap();
     let data_key = wtx.get_or_create_property_key("data").unwrap();
     let big = vec![0xABu8; 10_000];
-    wtx.insert_node(
-        NodeBuilder::new()
-            .type_label(nt)
-            .property(data_key, Value::Bytes(big))
-            .build(),
-    )
-    .unwrap();
+    let n = wtx
+        .insert_node(
+            NodeBuilder::new()
+                .type_label(nt)
+                .property(data_key, Value::Bytes(big.clone()))
+                .build(),
+        )
+        .unwrap();
     wtx.commit().unwrap();
+
+    let rtx = db.read_txn().unwrap();
+    let node = rtx.get_node(n).unwrap().unwrap();
+    match node.properties.get(&data_key) {
+        Some(Value::Bytes(b)) => {
+            assert_eq!(b.len(), 10_000);
+            assert_eq!(&b[..], &big[..]);
+        }
+        other => panic!("Expected Bytes, got {other:?}"),
+    }
 }
 
 #[test]
