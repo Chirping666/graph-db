@@ -68,12 +68,10 @@ impl DatabaseConfig {
 
     /// Sets the page size in bytes.
     ///
-    /// # Panics
-    ///
-    /// Panics if `size` is not a power of two or is less than 512.
+    /// The value must be a power of two and at least 512. Invalid values
+    /// are accepted here but will be rejected by [`validate()`](Self::validate),
+    /// which is called automatically by `Database::create` and `Database::open`.
     pub fn page_size(mut self, size: usize) -> Self {
-        assert!(size.is_power_of_two(), "page_size must be a power of two");
-        assert!(size >= 512, "page_size must be at least 512");
         self.page_size = size;
         self
     }
@@ -112,7 +110,6 @@ impl DatabaseConfig {
                     self.page_size
                 ),
                 #[cfg(feature = "std")]
-                #[cfg(feature = "std")]
                 source: None,
             }));
         }
@@ -122,7 +119,6 @@ impl DatabaseConfig {
                     "page_size {} is less than minimum 512",
                     self.page_size
                 ),
-                #[cfg(feature = "std")]
                 #[cfg(feature = "std")]
                 source: None,
             }));
@@ -167,15 +163,14 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "power of two")]
-    fn page_size_must_be_power_of_two() {
-        DatabaseConfig::default().page_size(1000);
-    }
+    fn page_size_accepts_invalid_defers_to_validate() {
+        let config = DatabaseConfig::default().page_size(1000);
+        assert_eq!(config.page_size, 1000);
+        assert!(config.validate().is_err());
 
-    #[test]
-    #[should_panic(expected = "at least 512")]
-    fn page_size_minimum() {
-        DatabaseConfig::default().page_size(256);
+        let config = DatabaseConfig::default().page_size(256);
+        assert_eq!(config.page_size, 256);
+        assert!(config.validate().is_err());
     }
 
     #[test]

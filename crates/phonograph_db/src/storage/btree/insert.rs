@@ -250,7 +250,7 @@ impl BTree {
                 &cells,
                 right_child,
                 self.config.page_size,
-            );
+            )?;
             let frame = pool.new_page(new_id, backend)?;
             pool.get_page_data_mut(frame)[..self.config.page_size]
                 .copy_from_slice(&page_bytes);
@@ -289,7 +289,7 @@ impl BTree {
                 &cells,
                 promoted.right_child,
                 self.config.page_size,
-            );
+            )?;
             let frame = pool.new_page(root_id, backend)?;
             pool.get_page_data_mut(frame)[..self.config.page_size]
                 .copy_from_slice(&page_data);
@@ -344,7 +344,7 @@ impl BTree {
                     &cells,
                     right_child,
                     self.config.page_size,
-                );
+                )?;
                 let frame = pool.new_page(new_id, backend)?;
                 pool.get_page_data_mut(frame)[..self.config.page_size]
                     .copy_from_slice(&page_bytes);
@@ -374,7 +374,7 @@ impl BTree {
                     allocated.push(new_parent_id);
                     let parent_bytes = InteriorPage::build(
                         new_parent_id, txn_id, &parent_cells, parent_right_child, self.config.page_size,
-                    );
+                    )?;
                     let new_frame = pool.new_page(new_parent_id, backend)?;
                     pool.get_page_data_mut(new_frame)[..self.config.page_size]
                         .copy_from_slice(&parent_bytes);
@@ -403,14 +403,14 @@ impl BTree {
                 &left_cells,
                 split_left_right_child,
                 self.config.page_size,
-            );
+            )?;
             let right_data = InteriorPage::build(
                 right_id_new,
                 txn_id,
                 &right_cells,
                 right_child,
                 self.config.page_size,
-            );
+            )?;
 
             let left_frame = pool.new_page(left_id, backend)?;
             pool.get_page_data_mut(left_frame)[..self.config.page_size]
@@ -442,7 +442,7 @@ impl BTree {
                     &root_cells,
                     promoted.right_child,
                     self.config.page_size,
-                );
+                )?;
                 let frame = pool.new_page(root_id, backend)?;
                 pool.get_page_data_mut(frame)[..self.config.page_size]
                     .copy_from_slice(&root_data);

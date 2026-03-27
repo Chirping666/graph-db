@@ -152,16 +152,16 @@ impl InteriorPage {
     ///
     /// Returns a `Vec<u8>` of exactly `page_size` bytes.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics if the cells do not fit in the page.
+    /// Returns an error if the cells do not fit in the page.
     pub fn build(
         page_id: PageId,
         txn_id: u64,
         cells: &[InteriorCell],
         right_child: PageId,
         page_size: usize,
-    ) -> Vec<u8> {
+    ) -> Result<Vec<u8>, StorageError> {
         let mut page = vec![0u8; page_size];
 
         // Write subheader
@@ -195,10 +195,15 @@ impl InteriorPage {
 
         // Sanity check: cell pointers must not overlap cell content area
         let ptrs_end = CELL_PTRS_OFFSET + cells.len() * 2;
-        assert!(
-            ptrs_end <= write_pos,
-            "interior page overflow: ptrs_end={ptrs_end}, content_start={write_pos}"
-        );
+        if ptrs_end > write_pos {
+            return Err(StorageError {
+                message: format!(
+                    "interior page overflow: ptrs_end={ptrs_end}, content_start={write_pos}"
+                ),
+                #[cfg(feature = "std")]
+                source: None,
+            });
+        }
 
         // Write header
         let header = CommonPageHeader {
@@ -212,7 +217,7 @@ impl InteriorPage {
         let checksum = CommonPageHeader::compute_checksum(&page);
         page[20..24].copy_from_slice(&checksum.to_le_bytes());
 
-        page
+        Ok(page)
     }
 
     /// Binary-searches for the child page to follow for the given `key`.
@@ -312,7 +317,7 @@ mod tests {
         ];
         let right_child = PageId(13);
         let page_data =
-            InteriorPage::build(PageId(2), 1, &cells, right_child, DEFAULT_PAGE_SIZE);
+            InteriorPage::build(PageId(2), 1, &cells, right_child, DEFAULT_PAGE_SIZE).unwrap();
 
         assert_eq!(page_data.len(), DEFAULT_PAGE_SIZE);
         CommonPageHeader::validate_checksum(&page_data).unwrap();
@@ -334,7 +339,7 @@ mod tests {
             make_cell(11, &[0x00, 0x0A]),
         ];
         let page_data =
-            InteriorPage::build(PageId(2), 1, &cells, PageId(12), DEFAULT_PAGE_SIZE);
+            InteriorPage::build(PageId(2), 1, &cells, PageId(12), DEFAULT_PAGE_SIZE).unwrap();
         let page = InteriorPage::parse(&page_data, DEFAULT_PAGE_SIZE).unwrap();
 
         // Key less than first separator → first cell's left_child
@@ -348,7 +353,7 @@ mod tests {
             make_cell(11, &[0x00, 0x0A]),
         ];
         let page_data =
-            InteriorPage::build(PageId(2), 1, &cells, PageId(12), DEFAULT_PAGE_SIZE);
+            InteriorPage::build(PageId(2), 1, &cells, PageId(12), DEFAULT_PAGE_SIZE).unwrap();
         let page = InteriorPage::parse(&page_data, DEFAULT_PAGE_SIZE).unwrap();
 
         // Key between separators → second cell's left_child
@@ -362,7 +367,7 @@ mod tests {
             make_cell(11, &[0x00, 0x0A]),
         ];
         let page_data =
-            InteriorPage::build(PageId(2), 1, &cells, PageId(12), DEFAULT_PAGE_SIZE);
+            InteriorPage::build(PageId(2), 1, &cells, PageId(12), DEFAULT_PAGE_SIZE).unwrap();
         let page = InteriorPage::parse(&page_data, DEFAULT_PAGE_SIZE).unwrap();
 
         // Key >= all separators → right_child
@@ -376,7 +381,7 @@ mod tests {
             make_cell(11, &[0x00, 0x0A]),
         ];
         let page_data =
-            InteriorPage::build(PageId(2), 1, &cells, PageId(12), DEFAULT_PAGE_SIZE);
+            InteriorPage::build(PageId(2), 1, &cells, PageId(12), DEFAULT_PAGE_SIZE).unwrap();
         let page = InteriorPage::parse(&page_data, DEFAULT_PAGE_SIZE).unwrap();
 
         // Key == separator → key >= cells[0].key, so go to cells[1].left_child
@@ -395,7 +400,7 @@ mod tests {
             cells.push(make_cell(i, &i.to_be_bytes()));
         }
         let page_data =
-            InteriorPage::build(PageId(2), 1, &cells, PageId(999), DEFAULT_PAGE_SIZE);
+            InteriorPage::build(PageId(2), 1, &cells, PageId(999), DEFAULT_PAGE_SIZE).unwrap();
         let page = InteriorPage::parse(&page_data, DEFAULT_PAGE_SIZE).unwrap();
 
         // Should still have some space
@@ -411,7 +416,7 @@ mod tests {
             .map(|i| make_cell(i + 10, &i.to_be_bytes()))
             .collect();
         let page_data =
-            InteriorPage::build(PageId(2), 1, &cells, PageId(99), DEFAULT_PAGE_SIZE);
+            InteriorPage::build(PageId(2), 1, &cells, PageId(99), DEFAULT_PAGE_SIZE).unwrap();
         let page = InteriorPage::parse(&page_data, DEFAULT_PAGE_SIZE).unwrap();
 
         let (left, median, right, right_right_child) = page.split();
@@ -429,7 +434,7 @@ mod tests {
     fn byte_level_layout() {
         let cells = vec![make_cell(10, &[0xAB, 0xCD])];
         let page_data =
-            InteriorPage::build(PageId(5), 42, &cells, PageId(20), DEFAULT_PAGE_SIZE);
+            InteriorPage::build(PageId(5), 42, &cells, PageId(20), DEFAULT_PAGE_SIZE).unwrap();
 
         // Check page_id at offset 0 (u64 LE)
         assert_eq!(

@@ -146,7 +146,7 @@ impl BTree {
 
             let page_bytes = InteriorPage::build(
                 new_id, txn_id, &cells, right_child, self.config.page_size,
-            );
+            )?;
             let frame = pool.new_page(new_id, backend)?;
             pool.get_page_data_mut(frame)[..self.config.page_size]
                 .copy_from_slice(&page_bytes);

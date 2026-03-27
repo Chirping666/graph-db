@@ -354,7 +354,7 @@ This phase converts remaining `assert!`/`panic!` in public library methods to pr
 
   **Verify:** `cargo test --workspace` passes.
 
-- [ ] **4.4 — Convert any other user-triggerable panics found in 4.1.**
+- [x] **4.4 — Convert any other user-triggerable panics found in 4.1.**
   Work through the remaining items from the 4.1 audit. For each:
   - Change the method signature to return `Result` (if not already).
   - Replace the `assert!`/`panic!`/`unwrap()` with a `map_err` or early `return Err(...)`.
