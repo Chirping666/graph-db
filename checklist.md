@@ -308,12 +308,12 @@ to store it inline anyway, causing an arithmetic underflow.
 
 ## Phase 4: Panic-to-Result Conversions
 
-> **Reference:** CLAUDE.md D5, audit `archive/audits/2026-03-26-codebase-audit.md` §3
+> **Reference:** CLAUDE.md D5, audit `archive/archive-1/audits/2026-03-26-codebase-audit.md` §3
 
 This phase converts remaining `assert!`/`panic!` in public library methods to proper
 `Result` error returns. Test-only panics and `debug_assert!` are left as-is.
 
-- [ ] **4.1 — Audit remaining panics in `phonograph_db` public API.**
+- [x] **4.1 — Audit remaining panics in `phonograph_db` public API.**
   Search for panic-inducing patterns in library code:
   ```bash
   grep -rn 'assert!\|panic!\|\.unwrap()\|\.expect(' crates/phonograph_db/src/ | grep -v '#\[cfg(test)\]' | grep -v 'mod tests'
