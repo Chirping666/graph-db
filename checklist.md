@@ -31,7 +31,7 @@ changing `- [ ]` to `- [x]` in this file.
 This phase upgrades the edition and removes MSRV pinning. Do this first because
 edition 2024 enables let-chain syntax, which Phase 1 also restores.
 
-- [ ] **1.1 — Update workspace `Cargo.toml`.**
+- [x] **1.1 — Update workspace `Cargo.toml`.**
   - Change `edition = "2021"` → `edition = "2024"` in `[workspace.package]`.
   - Remove `rust-version = "1.82"` from `[workspace.package]`.
   - **Verify:** `cargo check --workspace` passes. (If your local toolchain is older
