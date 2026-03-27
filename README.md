@@ -118,7 +118,7 @@ The database engine (`phonograph_db`) compiles under `no_std + alloc`:
 
 ```toml
 [dependencies]
-phonograph_db = { version = "0.1", default-features = false, features = ["alloc"] }
+phonograph_db = { version = "0.1", default-features = false }
 ```
 
 ```rust
@@ -128,17 +128,12 @@ use phonograph_db::backend_mem::MemoryBackend;
 let db = Database::create(MemoryBackend::new(), DatabaseConfig::default())?;
 ```
 
-## Minimum Supported Rust Version (MSRV)
-
-The MSRV is **1.82**.
-
 ## Known Limitations
 
 - `nodes_by_property()` performs a full scan (no property value index in v0.1)
 - Query methods return owned `Vec`s (no streaming iterator API)
 - No batch insert API
 - `write_txn()` blocks indefinitely when another write transaction is active (no timeout)
-- Large property values (>~1 KB) are not supported in v0.1
 
 ## License
 

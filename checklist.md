@@ -410,7 +410,7 @@ This phase converts remaining `assert!`/`panic!` in public library methods to pr
 
   **Verify:** CHANGELOG.md is well-formatted.
 
-- [ ] **5.2 — Update README.md.**
+- [x] **5.2 — Update README.md.**
   - Remove "Large property values (>~1 KB) are not supported in v0.1" from Known
     Limitations.
   - Verify the feature flag documentation reflects the simplified structure (no `alloc`
