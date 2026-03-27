@@ -12,7 +12,7 @@ changing `- [ ]` to `- [x]` in this file.
 
 ## Phase 0: Baseline Snapshot
 
-- [ ] **0.1 — Record the current test baseline.**
+- [x] **0.1 — Record the current test baseline.**
   ```bash
   cargo test --workspace 2>&1 | tail -5
   cargo clippy --workspace --all-targets -- -D warnings
