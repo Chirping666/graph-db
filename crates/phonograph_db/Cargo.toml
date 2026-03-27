@@ -1,0 +1,25 @@
+[package]
+name = "phonograph_db"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.82"
+description = "Embeddable graph database with B+ tree storage and MVCC transactions (no_std + alloc)"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/Chirping666/graph-db"
+keywords = ["graph-database", "embedded-database", "no-std", "btree", "mvcc"]
+categories = ["database-implementations", "no-std"]
+
+[features]
+default = ["std"]
+std = ["alloc", "phonograph/std"]
+alloc = ["phonograph/alloc"]
+
+[dependencies]
+phonograph = { version = "0.1", path = "../phonograph", default-features = false, features = ["alloc"] }
+spin = { version = "0.10", default-features = false, features = ["mutex", "rwlock", "spin_mutex"] }
+hashbrown = { version = "0.16", default-features = false, features = ["default-hasher"] }
+crc32fast = "1"
+xxhash-rust = { version = "0.8", default-features = false, features = ["xxh3"] }
+
+[dev-dependencies]
+tempfile = "3"

@@ -107,7 +107,7 @@ restores those modules in `phonograph_db`. Use per-crate checks during this phas
 This is the largest phase. It creates the database engine crate, moves code into it,
 swaps sync primitives, and generifies `Database<B>`.
 
-- [ ] **2.1 — Scaffold `phonograph_db` crate.**
+- [x] **2.1 — Scaffold `phonograph_db` crate.**
   - Create `crates/phonograph_db/` with `Cargo.toml` and `src/lib.rs`.
   - `Cargo.toml` per `030` §6: depend on `phonograph`, `spin`, `hashbrown`, `crc32fast`,
     `xxhash-rust`. Feature flags per `030` §12.
@@ -115,7 +115,7 @@ swaps sync primitives, and generifies `Database<B>`.
   - Add `phonograph_db` to workspace `members` in root `Cargo.toml`.
   - **Verify:** `cargo check -p phonograph_db` passes (empty crate).
 
-- [ ] **2.2 — Move backend traits and in-memory backend into `phonograph_db`.**
+- [x] **2.2 — Move backend traits and in-memory backend into `phonograph_db`.**
   - Restore `backend/` and `backend_mem/` from the pre-Phase-1 state (via `git` or staging)
     into `crates/phonograph_db/src/`.
   - Rename the `StorageError` *trait* (in `backend/`) to `BackendError` per decision R17.
@@ -124,14 +124,14 @@ swaps sync primitives, and generifies `Database<B>`.
   - Wire up `pub mod backend;` and `pub mod backend_mem;` in `phonograph_db`'s `lib.rs`.
   - **Verify:** `cargo check -p phonograph_db` passes.
 
-- [ ] **2.3 — Move storage engine into `phonograph_db`.**
+- [x] **2.3 — Move storage engine into `phonograph_db`.**
   - Move `graph_db/src/storage/` → `crates/phonograph_db/src/storage/`.
   - Update all imports in the moved files: `use crate::` paths, `use phonograph::` for
     core types, remove any `use graph_db_core::` or `use graph_db::` references.
   - Wire up `pub mod storage;` in `phonograph_db`'s `lib.rs`.
   - **Verify:** `cargo check -p phonograph_db` passes.
 
-- [ ] **2.4 — Move database engine into `phonograph_db`.**
+- [x] **2.4 — Move database engine into `phonograph_db`.**
   - Move `graph_db/src/db/` → `crates/phonograph_db/src/db/`.
   - Update all imports in the moved files.
   - Wire up `pub mod db;` in `phonograph_db`'s `lib.rs`.
@@ -139,7 +139,7 @@ swaps sync primitives, and generifies `Database<B>`.
     `AnyBackend`, and `PathBuf`/`StorageMode`. Those are fixed in the next steps.
   - **Verify:** Deferred to 2.8.
 
-- [ ] **2.5 — Create the `phonograph_db` error module.**
+- [x] **2.5 — Create the `phonograph_db` error module.**
   - Create `crates/phonograph_db/src/error/mod.rs`.
   - Define `StorageError` struct (moved from old `graph_db_core`).
   - Define `TransactionError` enum (moved from old `graph_db_core`).
@@ -149,7 +149,7 @@ swaps sync primitives, and generifies `Database<B>`.
   - Wire up `pub mod error;` in `phonograph_db`'s `lib.rs`.
   - **Verify:** Deferred to 2.8.
 
-- [ ] **2.6 — Create `sync.rs` and swap sync primitives.**
+- [x] **2.6 — Create `sync.rs` and swap sync primitives.**
   - Create `crates/phonograph_db/src/sync.rs` per `030` §10:
     ```rust
     pub(crate) use spin::Mutex;
@@ -164,7 +164,7 @@ swaps sync primitives, and generifies `Database<B>`.
   - Replace all `use std::collections::HashMap` with `use hashbrown::HashMap`.
   - **Verify:** Deferred to 2.8.
 
-- [ ] **2.7 — Generify `Database<B>` and split `DatabaseConfig`.**
+- [x] **2.7 — Generify `Database<B>` and split `DatabaseConfig`.**
   - Make `Database`, `DatabaseInner`, `ReadTransaction`, `WriteTransaction` generic
     over `B: StorageBackend` per `030` §9.
   - Remove `AnyBackend` from `phonograph_db` (it moves to `phonograph_std` in Phase 3).
@@ -175,7 +175,7 @@ swaps sync primitives, and generifies `Database<B>`.
     instead of constructing one internally from config.
   - **Verify:** Deferred to 2.8.
 
-- [ ] **2.8 — Add re-exports and compile `phonograph_db`.**
+- [x] **2.8 — Add re-exports and compile `phonograph_db`.**
   - Add `pub use phonograph::*;` re-export in `phonograph_db`'s `lib.rs` (decision R14).
   - Add convenience re-exports for the database facade types.
   - Resolve any remaining compile errors from the moves and refactors.
@@ -189,7 +189,7 @@ swaps sync primitives, and generifies `Database<B>`.
 
 ### ▸ Phase 2 Gate
 
-- [ ] **Phase 2 gate — all must pass:**
+- [x] **Phase 2 gate — all must pass:**
   ```bash
   cargo check -p phonograph
   cargo check -p phonograph --no-default-features --features alloc

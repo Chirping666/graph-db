@@ -21,6 +21,8 @@ into a three-crate workspace:
 The design document `030-workspace-redesign.md` is the **single source of truth** for all
 architectural decisions in this phase. When in doubt, that document takes precedence.
 
+Always use the latest crate version for dependencies.
+
 ### Archive
 
 All design documents, task directories, completion reports, and the previous `CLAUDE.md`
