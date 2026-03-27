@@ -362,7 +362,7 @@ This phase converts remaining `assert!`/`panic!` in public library methods to pr
 
   **Verify:** `cargo test --workspace` passes after each conversion.
 
-- [ ] **4.5 — Verify no remaining unwraps in `leaf.rs` parse paths.**
+- [x] **4.5 — Verify no remaining unwraps in `leaf.rs` parse paths.**
   The `parse` method in `leaf.rs` still contains two `try_into().unwrap()` calls
   inside the overflow cell parsing branch (parsing `overflow_page_id` and
   `total_overflow_len`). These are on slices that are bounds-checked above, but

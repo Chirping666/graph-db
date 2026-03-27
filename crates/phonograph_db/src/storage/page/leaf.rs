@@ -100,10 +100,18 @@ impl LeafPage {
         let cell_count = u16::from_le_bytes([page_data[24], page_data[25]]);
         let free_start = u16::from_le_bytes([page_data[26], page_data[27]]);
         let next_leaf = PageId(u64::from_le_bytes(
-            page_data[28..36].try_into().unwrap(),
+            page_data[28..36].try_into().map_err(|_| StorageError {
+                message: "leaf page: invalid next_leaf field".into(),
+                #[cfg(feature = "std")]
+                source: None,
+            })?,
         ));
         let prev_leaf = PageId(u64::from_le_bytes(
-            page_data[36..44].try_into().unwrap(),
+            page_data[36..44].try_into().map_err(|_| StorageError {
+                message: "leaf page: invalid prev_leaf field".into(),
+                #[cfg(feature = "std")]
+                source: None,
+            })?,
         ));
 
         let mut cells = Vec::with_capacity(cell_count as usize);
@@ -157,10 +165,18 @@ impl LeafPage {
                     });
                 }
                 let overflow_page_id = PageId(u64::from_le_bytes(
-                    page_data[ov_start..ov_start + 8].try_into().unwrap(),
+                    page_data[ov_start..ov_start + 8].try_into().map_err(|_| StorageError {
+                        message: format!("leaf cell {i}: invalid overflow_page_id field"),
+                        #[cfg(feature = "std")]
+                        source: None,
+                    })?,
                 ));
                 let total_overflow_len = u32::from_le_bytes(
-                    page_data[ov_start + 8..ov_start + 12].try_into().unwrap(),
+                    page_data[ov_start + 8..ov_start + 12].try_into().map_err(|_| StorageError {
+                        message: format!("leaf cell {i}: invalid total_overflow_len field"),
+                        #[cfg(feature = "std")]
+                        source: None,
+                    })?,
                 );
                 LeafCellValue::Overflow {
                     overflow_page_id,
