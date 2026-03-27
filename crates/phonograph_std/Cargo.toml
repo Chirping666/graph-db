@@ -1,8 +1,7 @@
 [package]
 name = "phonograph_std"
 version = "0.1.0"
-edition = "2021"
-rust-version = "1.82"
+edition.workspace = true
 description = "An embedded graph database with extensible schema, pluggable constraint validation, and pluggable inference hooks"
 keywords = ["graph-database", "embedded-database", "property-graph", "ontology", "knowledge-graph"]
 categories = ["database-implementations", "data-structures"]

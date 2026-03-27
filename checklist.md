@@ -37,7 +37,7 @@ edition 2024 enables let-chain syntax, which Phase 1 also restores.
   - **Verify:** `cargo check --workspace` passes. (If your local toolchain is older
     than 1.85, update it first — edition 2024 requires Rust 1.85+.)
 
-- [ ] **1.2 — Update per-crate `Cargo.toml` files.**
+- [x] **1.2 — Update per-crate `Cargo.toml` files.**
   For each of the three crates (`crates/phonograph/Cargo.toml`,
   `crates/phonograph_db/Cargo.toml`, `crates/phonograph_std/Cargo.toml`):
   - If the crate has its own `edition` key, change it to `"2024"` or remove it
