@@ -938,10 +938,8 @@ impl<'db, B: crate::backend::StorageBackend> WriteTransaction<'db, B> {
         let validators = self.inner.constraint_registry.read();
         let mut all_violations = Vec::new();
         for validator in validators.iter() {
-            if let Some(applies_to) = validator.applies_to_types() {
-                if !applies_to.iter().any(|t| affected_types.contains(t)) {
-                    continue;
-                }
+            if let Some(applies_to) = validator.applies_to_types() && !applies_to.iter().any(|t| affected_types.contains(t)) {
+                continue;
             }
             let violations = validator.validate(
                 &changeset,

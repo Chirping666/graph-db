@@ -560,14 +560,12 @@ fn e2e_complex_traversal_with_test_graph() {
     for edge in &alpha_leaders {
         // Only follow from Person nodes (skip org nodes)
         let leader_node = rtx.get_node(edge.source).unwrap();
-        if let Some(node) = leader_node {
-            if node.type_labels.contains(&g.person_type) {
-                let knows = rtx
-                    .outgoing_edges(edge.source, Some(g.knows_type))
-                    .unwrap();
-                for k in &knows {
-                    acquaintances.insert(k.target);
-                }
+        if let Some(node) = leader_node && node.type_labels.contains(&g.person_type) {
+            let knows = rtx
+                .outgoing_edges(edge.source, Some(g.knows_type))
+                .unwrap();
+            for k in &knows {
+                acquaintances.insert(k.target);
             }
         }
     }

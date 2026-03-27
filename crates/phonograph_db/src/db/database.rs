@@ -296,15 +296,13 @@ impl<B: StorageBackend> Database<B> {
                     }
                 })?;
                 let name_len = u16::from_le_bytes(name_len_bytes) as usize;
-                if key.len() >= 4 + name_len {
-                    if let Ok(name) = core::str::from_utf8(&key[4..4 + name_len]) {
-                        match kind {
-                            0x01 => persisted_names.constraints.push(name.to_string()),
-                            0x02 => {
-                                persisted_names.inference_rules.push(name.to_string())
-                            }
-                            _ => {}
+                if key.len() >= 4 + name_len && let Ok(name) = core::str::from_utf8(&key[4..4 + name_len]) {
+                    match kind {
+                        0x01 => persisted_names.constraints.push(name.to_string()),
+                        0x02 => {
+                            persisted_names.inference_rules.push(name.to_string())
                         }
+                        _ => {}
                     }
                 }
             }

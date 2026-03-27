@@ -45,7 +45,7 @@ edition 2024 enables let-chain syntax, which Phase 1 also restores.
   - Remove any `rust-version` field.
   - **Verify:** `cargo check --workspace` passes.
 
-- [ ] **1.3 — Revert let-chain refactors.**
+- [x] **1.3 — Revert let-chain refactors.**
   Locate the 5 sites where let-chains were refactored to nested `if` blocks for
   edition 2021 compatibility. Restore the original `if let ... && ...` syntax.
 
