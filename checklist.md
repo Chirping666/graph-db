@@ -288,7 +288,7 @@ swaps sync primitives, and generifies `Database<B>`.
 
 Run the complete verification checklist. Every item must pass.
 
-- [ ] **5.1 — `phonograph` isolation checks.**
+- [x] **5.1 — `phonograph` isolation checks.**
   ```bash
   cargo check -p phonograph --no-default-features --features alloc
   grep -r "ReadAt\|WriteAt\|StorageBackend\|StorageError\|TransactionError" crates/phonograph/src/
@@ -296,20 +296,20 @@ Run the complete verification checklist. Every item must pass.
   First command passes. Second command returns empty.
   Inspect `crates/phonograph/Cargo.toml` — zero non-dev dependencies.
 
-- [ ] **5.2 — `phonograph_db` no\_std checks.**
+- [x] **5.2 — `phonograph_db` no\_std checks.**
   ```bash
   cargo check -p phonograph_db --no-default-features --features alloc
   grep -r "use std::" crates/phonograph_db/src/
   ```
   First command passes. Second returns empty or only `#[cfg(feature = "std")]`-gated lines.
 
-- [ ] **5.3 — `phonograph_std` compilation.**
+- [x] **5.3 — `phonograph_std` compilation.**
   ```bash
   cargo check -p phonograph_std
   ```
   Passes.
 
-- [ ] **5.4 — Full workspace build, test, lint, docs.**
+- [x] **5.4 — Full workspace build, test, lint, docs.**
   ```bash
   cargo build --workspace
   cargo test --workspace
@@ -318,11 +318,11 @@ Run the complete verification checklist. Every item must pass.
   ```
   All pass with zero warnings.
 
-- [ ] **5.5 — Regression test count.** Compare `cargo test --workspace` output against
+- [x] **5.5 — Regression test count.** Compare `cargo test --workspace` output against
   the Phase 0 baseline. All 311+ (or 473+, depending on baseline) tests must still pass.
   No test should have been silently dropped.
 
-- [ ] **5.6 — Functional smoke tests.**
+- [x] **5.6 — Functional smoke tests.**
   - `Database<MemoryBackend>` round-trips nodes and edges (via doc-test or integration test).
   - `Database<AnyBackend>` (through `phonograph_std::open_in_memory()`) round-trips
     nodes and edges.
@@ -332,7 +332,7 @@ Run the complete verification checklist. Every item must pass.
 
 ### ▸ Phase 5 Gate — MIGRATION COMPLETE
 
-- [ ] **All 13 checks from `030-workspace-redesign.md` §17 pass.** The workspace is a
+- [x] **All 13 checks from `030-workspace-redesign.md` §17 pass.** The workspace is a
   clean three-crate layout. Commit with:
   ```
   chore(workspace): complete three-crate migration to phonograph
