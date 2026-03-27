@@ -480,7 +480,7 @@ This phase converts remaining `assert!`/`panic!` in public library methods to pr
 
 ### ▸ Phase 6 Gate — TASK COMPLETE
 
-- [ ] **All verification checks from Phase 6 pass.**
+- [x] **All verification checks from Phase 6 pass.**
   Write a completion report to `archive/completion-reports/31-cleanup-hardening.md`
   documenting:
   - Status
