@@ -67,7 +67,7 @@ edition 2024 enables let-chain syntax, which Phase 1 also restores.
 
 ### ▸ Phase 1 Gate
 
-- [ ] **Phase 1 gate:**
+- [x] **Phase 1 gate:**
   ```bash
   cargo test --workspace
   cargo clippy --workspace --all-targets -- -D warnings
