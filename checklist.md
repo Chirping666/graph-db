@@ -458,7 +458,7 @@ This phase converts remaining `assert!`/`panic!` in public library methods to pr
   Both pass. These now compile the full crates under `no_std + alloc` without
   needing `--features alloc`.
 
-- [ ] **6.3 — Regression test count.**
+- [x] **6.3 — Regression test count.**
   Compare `cargo test --workspace` output against the Phase 0 baseline. All
   previously passing tests must still pass. New tests from Phase 3 should appear
   in the count.
