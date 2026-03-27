@@ -5,7 +5,6 @@
 //! All error types implement [`core::fmt::Display`] and [`core::fmt::Debug`].
 //! Under the `std` feature, they additionally implement [`std::error::Error`].
 
-#[cfg(feature = "alloc")]
 use alloc::string::String;
 
 use core::fmt;

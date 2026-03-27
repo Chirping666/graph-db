@@ -101,7 +101,7 @@ direction), then `phonograph_db` (depends on `phonograph`), then update
     use for temp files).
   - **Verify:** `cargo check -p phonograph` passes.
 
-- [ ] **2.2 — Remove `#[cfg(feature = "alloc")]` gates from `phonograph` source.**
+- [x] **2.2 — Remove `#[cfg(feature = "alloc")]` gates from `phonograph` source.**
   In `crates/phonograph/src/lib.rs`:
   - Remove all `#[cfg(feature = "alloc")]` attributes from `pub mod` declarations
     and `pub use` re-exports. These modules are now unconditional.

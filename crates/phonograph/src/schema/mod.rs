@@ -4,7 +4,6 @@
 //! and the property key registry. All traits are object-safe and operate
 //! under `no_std + alloc`.
 
-#[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 
 use crate::types::{

@@ -4,7 +4,6 @@
 //! identity newtypes, the dynamically-typed value system, property maps,
 //! node and edge structs, and the type/schema system.
 
-#[cfg(feature = "alloc")]
 use alloc::{
     boxed::Box,
     collections::BTreeMap,

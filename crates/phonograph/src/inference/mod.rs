@@ -4,7 +4,6 @@
 //! results, provenance tracking, and the [`InferenceRule`] trait for pluggable
 //! inference. All types are `no_std + alloc` compatible.
 
-#[cfg(feature = "alloc")]
 use alloc::{string::String, vec::Vec};
 
 use crate::schema::{GraphView, PropertyKeyRegistryView, TypeRegistryView};

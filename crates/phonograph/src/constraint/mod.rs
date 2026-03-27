@@ -4,7 +4,6 @@
 //! [`ChangeSet`]) and the [`ConstraintValidator`] trait for pluggable validation.
 //! All types are `no_std + alloc` compatible.
 
-#[cfg(feature = "alloc")]
 use alloc::{collections::BTreeSet, string::String, vec::Vec};
 
 use crate::schema::{GraphView, PropertyKeyRegistryView, TypeRegistryView};
