@@ -205,7 +205,7 @@ Before writing any code, read these files:
 
 > **Implements:** CLAUDE.md principle A2
 
-- [ ] **2.1 — Inventory all `AnyBackend` usage.**
+- [x] **2.1 — Inventory all `AnyBackend` usage.**
   ```bash
   grep -rn 'AnyBackend' crates/phonograph_std/src/
   grep -rn 'AnyBackend' crates/phonograph_std/tests/
