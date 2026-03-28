@@ -97,7 +97,7 @@ Before writing any code, read these files:
   This is the regression baseline.
   **Verify:** Zero failures, zero clippy warnings.
 
-- [ ] **0.3 — Record the current import structure.**
+- [x] **0.3 — Record the current import structure.**
   ```bash
   grep -rn 'pub use phonograph' crates/phonograph_db/src/lib.rs crates/phonograph_std/src/lib.rs
   grep -rn 'use phonograph_std::' crates/phonograph_std/tests/ crates/phonograph_std/examples/
