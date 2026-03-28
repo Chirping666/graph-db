@@ -238,7 +238,7 @@ Before writing any code, read these files:
 
   **Verify:** `cargo check -p phonograph_std` passes.
 
-- [ ] **2.3 — Delete `any_backend.rs` and clean up.**
+- [x] **2.3 — Delete `any_backend.rs` and clean up.**
   Delete `crates/phonograph_std/src/any_backend.rs`. Remove `mod any_backend;` and
   `pub use any_backend::*;` from `lib.rs`. Remove `AnyBackendError` and all impls.
 

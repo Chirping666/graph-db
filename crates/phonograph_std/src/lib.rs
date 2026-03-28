@@ -25,9 +25,6 @@
 pub use phonograph_db::*;
 
 pub mod backend_std;
-mod any_backend;
-
-pub use any_backend::{AnyBackend, AnyBackendError};
 
 /// A database backed by a persistent file.
 pub type FileDatabase = phonograph_db::db::Database<backend_std::FileBackend>;
