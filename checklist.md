@@ -355,7 +355,7 @@ Before writing any code, read these files:
 - [x] **4.4 — Verify `FileBackend`'s impl still compiles.**
   **Verify:** `cargo check -p phonograph_std` passes.
 
-- [ ] **4.5 — Add `compile_error!` for unsupported platforms.**
+- [x] **4.5 — Add `compile_error!` for unsupported platforms.**
   In `crates/phonograph_std/src/backend_std/file_backend.rs` at module level:
   ```rust
   #[cfg(not(any(unix, windows)))]

@@ -1,5 +1,12 @@
 //! [`FileBackend`] implementation — the primary persistent storage backend.
 
+#[cfg(not(any(unix, windows)))]
+compile_error!(
+    "phonograph_std requires Unix or Windows. \
+     For other platforms, implement StorageBackend and LockableBackend \
+     for your platform's I/O primitives in a separate crate."
+);
+
 use std::fs::{File, OpenOptions};
 use std::path::PathBuf;
 
