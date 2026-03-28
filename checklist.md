@@ -183,7 +183,7 @@ Before writing any code, read these files:
   cargo check -p phonograph_db --no-default-features
   ```
 
-- [ ] **1.2 — Verify all existing sync usage compiles and tests pass.**
+- [x] **1.2 — Verify all existing sync usage compiles and tests pass.**
   ```bash
   cargo test --workspace
   ```
