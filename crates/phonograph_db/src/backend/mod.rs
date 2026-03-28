@@ -15,8 +15,9 @@
 //!           └── StorageBackend = ReadAt + WriteAt + Durability (blanket impl)
 //! ```
 //!
-//! Lifecycle traits ([`OpenableBackend`], [`LockableBackend`]) are `std`-only
-//! and live in the [`lifecycle`] submodule.
+//! [`LockableBackend`] is unconditional (`no_std + alloc` compatible) and
+//! lives in [`traits`]. [`OpenableBackend`] is `std`-only and lives in the
+//! [`lifecycle`] submodule.
 
 pub mod error;
 pub mod traits;
@@ -24,7 +25,7 @@ pub mod traits;
 pub mod lifecycle;
 
 pub use error::{BackendError, BackendErrorType, StorageErrorKind};
-pub use traits::{Durability, ReadAt, StorageBackend, WriteAt};
+pub use traits::{Durability, LockableBackend, ReadAt, StorageBackend, WriteAt};
 
 #[cfg(feature = "std")]
-pub use lifecycle::{LockableBackend, OpenableBackend};
+pub use lifecycle::OpenableBackend;

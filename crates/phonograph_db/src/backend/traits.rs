@@ -168,6 +168,46 @@ pub trait StorageBackend: ReadAt + WriteAt + Durability {}
 /// automatically a [`StorageBackend`].
 impl<T: ReadAt + WriteAt + Durability> StorageBackend for T {}
 
+/// Advisory locking for single-process exclusivity.
+///
+/// The database requires exclusive access to prevent corruption from
+/// concurrent processes. This trait provides the locking mechanism; the
+/// database engine calls it at open time and releases the lock at close.
+///
+/// This trait is `no_std + alloc` compatible — it contains no references
+/// to `std::path`, `std::fs`, or OS-specific types. Platform-specific
+/// locking (e.g., `flock()` on Unix, `LockFile()` on Windows) is
+/// implemented in downstream crates like `phonograph_std`.
+///
+/// # Advisory vs. mandatory locking
+///
+/// - **Unix:** `flock()` is advisory — it prevents cooperative processes
+///   from accessing the file but cannot stop non-cooperating ones.
+/// - **Windows:** `LockFile()` is mandatory.
+///
+/// This trait is object-safe.
+pub trait LockableBackend: BackendErrorType {
+    /// The guard value representing a held lock. Dropping it releases
+    /// the lock (RAII pattern).
+    ///
+    /// Must be [`Send`] so the guard can be held across thread boundaries
+    /// (the database's engine may be `Send + Sync`).
+    type LockGuard: Send;
+
+    /// Attempts to acquire an exclusive lock on the storage medium.
+    ///
+    /// This is **non-blocking**: it returns immediately with a lock guard
+    /// or an error. The database should fail immediately on contention
+    /// rather than blocking indefinitely.
+    ///
+    /// # Errors
+    ///
+    /// - [`LockContention`](super::StorageErrorKind::LockContention) if
+    ///   another process holds the lock.
+    /// - [`Io`](super::StorageErrorKind::Io) on other locking failures.
+    fn try_lock_exclusive(&self) -> Result<Self::LockGuard, Self::Error>;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

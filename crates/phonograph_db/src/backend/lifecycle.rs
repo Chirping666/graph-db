@@ -1,10 +1,11 @@
-//! Lifecycle and locking traits for storage backends.
+//! Lifecycle traits for storage backends.
 //!
-//! [`OpenableBackend`] provides open/create semantics and
-//! [`LockableBackend`] provides advisory file locking.
-//! Both traits are `std`-only.
+//! [`OpenableBackend`] provides open/create semantics for backends
+//! managing external resources. This module is `std`-only.
+//!
+//! For advisory file locking, see [`LockableBackend`](super::traits::LockableBackend)
+//! which is unconditional (`no_std + alloc` compatible).
 
-use super::error::BackendErrorType;
 use super::traits::StorageBackend;
 
 /// Open/create semantics for storage backends managing external resources.
@@ -59,41 +60,4 @@ pub trait OpenableBackend: StorageBackend + Sized {
             Err(_) => Self::create(config),
         }
     }
-}
-
-/// Advisory file locking for single-process exclusivity.
-///
-/// The database requires exclusive access to prevent corruption from
-/// concurrent processes. This trait provides the locking mechanism; the
-/// database engine calls it at open time and releases the lock at close.
-///
-/// This trait is `std`-only. In-memory backends do not need file locking.
-///
-/// # Advisory vs. mandatory locking
-///
-/// - **Unix:** `flock()` is advisory — it prevents cooperative processes
-///   from accessing the file but cannot stop non-cooperating ones.
-/// - **Windows:** `LockFile()` is mandatory.
-///
-/// This trait is object-safe.
-pub trait LockableBackend: BackendErrorType {
-    /// The guard value representing a held lock. Dropping it releases
-    /// the lock (RAII pattern).
-    ///
-    /// Must be [`Send`] so the guard can be held across thread boundaries
-    /// (the database's engine may be `Send + Sync`).
-    type LockGuard: Send;
-
-    /// Attempts to acquire an exclusive lock on the storage medium.
-    ///
-    /// This is **non-blocking**: it returns immediately with a lock guard
-    /// or an error. The database should fail immediately on contention
-    /// rather than blocking indefinitely.
-    ///
-    /// # Errors
-    ///
-    /// - [`LockContention`](super::StorageErrorKind::LockContention) if
-    ///   another process holds the lock.
-    /// - [`Io`](super::StorageErrorKind::Io) on other locking failures.
-    fn try_lock_exclusive(&self) -> Result<Self::LockGuard, Self::Error>;
 }

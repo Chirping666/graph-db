@@ -331,7 +331,7 @@ Before writing any code, read these files:
 
   **Verify:** Audit complete.
 
-- [ ] **4.2 — Make `LockableBackend` unconditional.**
+- [x] **4.2 — Make `LockableBackend` unconditional.**
   Remove `#[cfg(feature = "std")]` from the trait. Ensure it contains NO references
   to `std::path`, `std::fs`, `libc`, or OS-specific types. `OpenableBackend` stays
   `std`-gated.
