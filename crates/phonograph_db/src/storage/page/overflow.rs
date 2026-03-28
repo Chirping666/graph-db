@@ -340,4 +340,32 @@ mod tests {
     fn max_payload_4096() {
         assert_eq!(OverflowPage::max_payload(4096), 4060);
     }
+
+    #[test]
+    fn read_chain_rejects_cyclic_chain() {
+        // Build a single overflow page that points back to itself, creating a cycle.
+        let page_id = PageId(10);
+        let data = b"looping";
+        let page_data = OverflowPage::build(
+            page_id, 1, page_id, data, DEFAULT_PAGE_SIZE,
+        ).unwrap();
+
+        let mut backend = TestBackend::new();
+        let offset = page_id.0 * DEFAULT_PAGE_SIZE as u64;
+        backend.set_len(offset + DEFAULT_PAGE_SIZE as u64).unwrap();
+        backend.write_at(offset, &page_data).unwrap();
+
+        // Expected total is large enough that the chain would loop forever
+        // without the MAX_OVERFLOW_CHAIN_LENGTH guard.
+        let result = OverflowPage::read_chain(
+            &backend, page_id, u32::MAX, DEFAULT_PAGE_SIZE,
+        );
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            err.message.contains("exceeded maximum length"),
+            "unexpected error: {}",
+            err.message,
+        );
+    }
 }

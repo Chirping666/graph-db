@@ -399,7 +399,7 @@ Before writing any code, read these files:
 
   **Verify:** `cargo test --workspace` — all existing tests pass.
 
-- [ ] **5.3 — Add a unit test for overflow chain length enforcement.**
+- [x] **5.3 — Add a unit test for overflow chain length enforcement.**
   Simulate a cyclic or excessively long chain. Verify `read_chain` returns an error.
 
   **Verify:** `cargo test -p phonograph_db -- overflow` passes.
