@@ -1,10 +1,9 @@
 //! An embedded graph database with extensible schema and pluggable inference.
 //!
 //! `phonograph_std` is the batteries-included entry point for the Phonograph
-//! workspace. It re-exports everything from [`phonograph`] (core types) and
-//! [`phonograph_db`] (database engine), and adds the file-backed storage
-//! backend ([`FileBackend`](backend_std::FileBackend)), OS-level file
-//! locking, and convenience constructors.
+//! workspace. It provides the file-backed storage backend
+//! ([`FileBackend`](backend_std::FileBackend)), OS-level file locking, and
+//! convenience constructors that return concrete database types.
 //!
 //! For `no_std` usage, depend on [`phonograph_db`] directly.
 //!
@@ -30,50 +29,34 @@ mod any_backend;
 
 pub use any_backend::{AnyBackend, AnyBackendError};
 
-/// A database backed by either a file or in-memory storage.
-///
-/// This is a convenience alias for [`phonograph_db::db::Database<AnyBackend>`].
-/// For `no_std` usage with a specific backend, use
-/// [`phonograph_db::db::Database<B>`](phonograph_db::db::Database) directly.
-pub type Database = phonograph_db::db::Database<AnyBackend>;
+/// A database backed by a persistent file.
+pub type FileDatabase = phonograph_db::db::Database<backend_std::FileBackend>;
 
-/// A read transaction on a [`Database`] backed by [`AnyBackend`].
-pub type ReadTransaction<'db> = phonograph_db::db::ReadTransaction<'db, AnyBackend>;
+/// A database backed by in-memory storage.
+pub type MemoryDatabase = phonograph_db::db::Database<phonograph_db::backend_mem::MemoryBackend>;
 
-/// A write transaction on a [`Database`] backed by [`AnyBackend`].
-pub type WriteTransaction<'db> = phonograph_db::db::WriteTransaction<'db, AnyBackend>;
-
-/// Extension methods for [`Database`] backed by [`AnyBackend`].
-pub trait DatabaseExt {
+/// Extension methods for in-memory databases.
+pub trait MemoryDatabaseExt {
     /// Saves the in-memory database contents to a file.
     ///
     /// The resulting file is a valid database file that can be reopened with
-    /// [`open`]. Only available when the database is using in-memory storage.
+    /// [`open`]. Delegates to [`MemoryBackend::save_to_file`](phonograph_db::backend_mem::MemoryBackend::save_to_file).
     ///
     /// # Errors
     ///
-    /// Returns an error if the database is not using in-memory storage
-    /// or if the file write fails.
+    /// Returns an error if the file write fails.
     fn save_to_file(&self, path: &std::path::Path) -> Result<(), phonograph_db::error::Error>;
 }
 
-impl DatabaseExt for Database {
+impl MemoryDatabaseExt for MemoryDatabase {
     fn save_to_file(&self, path: &std::path::Path) -> Result<(), phonograph_db::error::Error> {
-        self.with_backend(|backend| match backend {
-            AnyBackend::Memory(mem) => {
-                mem.save_to_file(path).map_err(|e| {
-                    phonograph_db::error::Error::Storage(phonograph_db::error::StorageError {
-                        message: format!("snapshot save failed: {e}"),
-                        source: None,
-                    })
-                })
-            }
-            AnyBackend::File(_) => Err(phonograph_db::error::Error::Storage(
-                phonograph_db::error::StorageError {
-                    message: "save_to_file is only available for in-memory databases".into(),
+        self.with_backend(|backend| {
+            backend.save_to_file(path).map_err(|e| {
+                phonograph_db::error::Error::Storage(phonograph_db::error::StorageError {
+                    message: format!("snapshot save failed: {e}"),
                     source: None,
-                },
-            )),
+                })
+            })
         })
     }
 }
@@ -148,7 +131,7 @@ fn map_backend_err<E: phonograph_db::backend::BackendError>(e: E) -> phonograph_
 /// ```no_run
 /// let db = phonograph_std::open("/tmp/my.db").unwrap();
 /// ```
-pub fn open(path: impl AsRef<std::path::Path>) -> Result<Database, phonograph_db::error::Error> {
+pub fn open(path: impl AsRef<std::path::Path>) -> Result<FileDatabase, phonograph_db::error::Error> {
     open_with_config(FileConfig::new(path.as_ref()))
 }
 
@@ -158,7 +141,7 @@ pub fn open(path: impl AsRef<std::path::Path>) -> Result<Database, phonograph_db
 ///
 /// Returns an error if the file cannot be opened or created, or if the
 /// database format is invalid.
-pub fn open_with_config(config: FileConfig) -> Result<Database, phonograph_db::error::Error> {
+pub fn open_with_config(config: FileConfig) -> Result<FileDatabase, phonograph_db::error::Error> {
     use phonograph_db::backend::OpenableBackend;
     use phonograph_db::backend::ReadAt;
 
@@ -170,12 +153,11 @@ pub fn open_with_config(config: FileConfig) -> Result<Database, phonograph_db::e
     let file_backend =
         backend_std::FileBackend::open_or_create(backend_config).map_err(map_backend_err)?;
     let file_len = file_backend.len().map_err(map_backend_err)?;
-    let backend = AnyBackend::File(file_backend);
 
     if file_len == 0 {
-        phonograph_db::db::Database::create(backend, config.engine)
+        phonograph_db::db::Database::create(file_backend, config.engine)
     } else {
-        phonograph_db::db::Database::open(backend, config.engine)
+        phonograph_db::db::Database::open(file_backend, config.engine)
     }
 }
 
@@ -195,8 +177,8 @@ pub fn open_with_config(config: FileConfig) -> Result<Database, phonograph_db::e
 /// let rtx = db.read_txn().unwrap();
 /// assert_eq!(rtx.node_count().unwrap(), 0);
 /// ```
-pub fn open_in_memory() -> Result<Database, phonograph_db::error::Error> {
-    let backend = AnyBackend::Memory(phonograph_db::backend_mem::MemoryBackend::new());
+pub fn open_in_memory() -> Result<MemoryDatabase, phonograph_db::error::Error> {
+    let backend = phonograph_db::backend_mem::MemoryBackend::new();
     let config = phonograph_db::db::DatabaseConfig::default().extension_startup_check(false);
     phonograph_db::db::Database::create(backend, config)
 }

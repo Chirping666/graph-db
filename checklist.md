@@ -215,7 +215,7 @@ Before writing any code, read these files:
 
   **Verify:** List is complete.
 
-- [ ] **2.2 — Replace convenience functions with concrete return types.**
+- [x] **2.2 — Replace convenience functions with concrete return types.**
   In `crates/phonograph_std/src/lib.rs`, replace:
   ```rust
   pub type Database = phonograph_db::db::Database<AnyBackend>;
