@@ -352,7 +352,7 @@ Before writing any code, read these files:
 
   **Verify:** `cargo check -p phonograph_db --no-default-features` passes.
 
-- [ ] **4.4 — Verify `FileBackend`'s impl still compiles.**
+- [x] **4.4 — Verify `FileBackend`'s impl still compiles.**
   **Verify:** `cargo check -p phonograph_std` passes.
 
 - [ ] **4.5 — Add `compile_error!` for unsupported platforms.**
