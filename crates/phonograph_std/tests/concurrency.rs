@@ -8,12 +8,12 @@ use std::thread;
 
 use phonograph_std::db::builders::{EdgeBuilder, NodeBuilder, TypeDefinitionBuilder};
 use phonograph_std::types::{NodeId, Value};
-use phonograph_std::Database;
+use phonograph_std::FileDatabase;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Helper: creates a temp-dir database.
-fn open_temp_db() -> (Database, tempfile::TempDir) {
+fn open_temp_db() -> (FileDatabase, tempfile::TempDir) {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("test.db");
     let db = phonograph_std::open(&path).unwrap();

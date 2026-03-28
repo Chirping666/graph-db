@@ -15,12 +15,12 @@ use phonograph_std::inference::{
 };
 use phonograph_std::schema::{GraphView, PropertyKeyRegistryView, TypeRegistryView};
 use phonograph_std::types::{EdgeId, NodeId, PropertyKeyId, TypeId, Value};
-use phonograph_std::Database;
+use phonograph_std::FileDatabase;
 
 use std::sync::atomic::{AtomicU64, Ordering};
 
 /// Helper: creates a temp-dir database.
-fn open_temp_db() -> (Database, tempfile::TempDir) {
+fn open_temp_db() -> (FileDatabase, tempfile::TempDir) {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("test.db");
     let db = phonograph_std::open(&path).unwrap();
@@ -179,7 +179,7 @@ impl InferenceRule for InvalidFactRule {
 ///          source_node_id, target_node_id).
 #[allow(clippy::type_complexity)]
 fn setup_inference_db() -> (
-    Database,
+    FileDatabase,
     tempfile::TempDir,
     TypeId,
     TypeId,

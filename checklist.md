@@ -244,7 +244,7 @@ Before writing any code, read these files:
 
   **Verify:** `cargo check -p phonograph_std` passes.
 
-- [ ] **2.4 — Update all tests and examples.**
+- [x] **2.4 — Update all tests and examples.**
   Update every test/example in `crates/phonograph_std/tests/` and `examples/` to use
   concrete types. Replace `phonograph_std::Database` with `FileDatabase` or
   `MemoryDatabase`. Update helper functions like `open_temp_db()`.

@@ -12,7 +12,6 @@ use phonograph_std::error::Error;
 use phonograph_std::{NotFoundError, SchemaError};
 use phonograph_std::inference::InferenceMode;
 use phonograph_std::types::{NodeId, EdgeId, Value};
-use phonograph_std::Database;
 
 use common::{
     build_test_graph, open_mem_db, open_temp_db, InverseEdgeRule, RequiredPropertyValidator,
@@ -447,7 +446,7 @@ fn e2e_cross_backend_equivalence() {
     let (persistent_db, _dir) = open_temp_db();
     let mem_db = open_mem_db();
 
-    fn populate(db: &Database) -> (Vec<NodeId>, Vec<EdgeId>) {
+    fn populate<B: phonograph_std::backend::StorageBackend>(db: &phonograph_std::db::Database<B>) -> (Vec<NodeId>, Vec<EdgeId>) {
         let mut wtx = db.write_txn().unwrap();
         let nt = wtx
             .register_type(TypeDefinitionBuilder::node_type("Person").build())

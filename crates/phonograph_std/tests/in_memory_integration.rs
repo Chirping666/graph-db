@@ -17,10 +17,10 @@ use phonograph_std::backend_mem::MemoryBackend;
 use phonograph_std::inference::{InferenceMode, InferenceResult, InferenceRule, InferredFact};
 use phonograph_std::schema::{GraphView, PropertyKeyRegistryView, TypeRegistryView};
 use phonograph_std::types::{NodeId, PropertyKeyId, TypeId, Value};
-use phonograph_std::{Database, DatabaseExt};
+use phonograph_std::{MemoryDatabase, MemoryDatabaseExt};
 
 /// Helper: opens an in-memory database.
-fn open_mem_db() -> Database {
+fn open_mem_db() -> MemoryDatabase {
     phonograph_std::open_in_memory().unwrap()
 }
 

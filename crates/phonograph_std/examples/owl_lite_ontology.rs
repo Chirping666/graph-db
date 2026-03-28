@@ -382,7 +382,7 @@ fn main() -> Result<(), Error> {
 
 /// Helper: print the rdf:type edges for an individual, showing class labels.
 fn print_individual_types(
-    rtx: &phonograph_std::ReadTransaction<'_>,
+    rtx: &phonograph_std::db::ReadTransaction<'_, phonograph_std::backend_mem::MemoryBackend>,
     individual_id: phonograph_std::NodeId,
     rdf_type_edge: TypeId,
     label_key: PropertyKeyId,

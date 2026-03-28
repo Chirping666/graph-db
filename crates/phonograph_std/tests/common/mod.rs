@@ -8,14 +8,14 @@ use phonograph_std::error::Error;
 use phonograph_std::inference::{InferenceResult, InferenceRule, InferredFact};
 use phonograph_std::schema::{GraphView, PropertyKeyRegistryView, TypeRegistryView};
 use phonograph_std::types::{EdgeId, NodeId, PropertyKeyId, TypeId, Value};
-use phonograph_std::Database;
+use phonograph_std::{FileDatabase, MemoryDatabase};
 
 // ---------------------------------------------------------------------------
 // Database constructors
 // ---------------------------------------------------------------------------
 
 /// Opens a persistent database in a temporary directory.
-pub fn open_temp_db() -> (Database, tempfile::TempDir) {
+pub fn open_temp_db() -> (FileDatabase, tempfile::TempDir) {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("test.db");
     let db = phonograph_std::open(&path).unwrap();
@@ -23,7 +23,7 @@ pub fn open_temp_db() -> (Database, tempfile::TempDir) {
 }
 
 /// Opens an in-memory database.
-pub fn open_mem_db() -> Database {
+pub fn open_mem_db() -> MemoryDatabase {
     phonograph_std::open_in_memory().unwrap()
 }
 
@@ -188,7 +188,7 @@ pub struct TestGraph {
 /// 3 edge types (knows, works_at, leads), 4 property keys,
 /// 8 nodes, and 12 edges.
 #[allow(dead_code)]
-pub fn build_test_graph(db: &Database) -> Result<TestGraph, Error> {
+pub fn build_test_graph<B: phonograph_std::backend::StorageBackend>(db: &phonograph_std::db::Database<B>) -> Result<TestGraph, Error> {
     let mut wtx = db.write_txn()?;
 
     // Types
