@@ -16,6 +16,9 @@ use super::{PageId, PageType};
 /// Total header size for overflow pages: common(24) + next_page(8) + data_length(4) = 36.
 const OVERFLOW_HEADER_SIZE: usize = 36;
 
+/// Maximum overflow pages in a chain. Prevents infinite loops on corrupt data.
+pub const MAX_OVERFLOW_CHAIN_LENGTH: usize = 16_384;
+
 /// A parsed overflow page.
 #[derive(Clone, Debug)]
 pub struct OverflowPage {

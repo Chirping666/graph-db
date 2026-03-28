@@ -385,7 +385,7 @@ Before writing any code, read these files:
 
 > **Implements:** CLAUDE.md principle A5
 
-- [ ] **5.1 — Add `MAX_OVERFLOW_CHAIN_LENGTH` constant.**
+- [x] **5.1 — Add `MAX_OVERFLOW_CHAIN_LENGTH` constant.**
   In `crates/phonograph_db/src/storage/page/overflow.rs`:
   ```rust
   /// Maximum overflow pages in a chain. Prevents infinite loops on corrupt data.
