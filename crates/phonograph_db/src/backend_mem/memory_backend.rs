@@ -273,6 +273,30 @@ impl backend::Durability for MemoryBackend {
 }
 
 // ---------------------------------------------------------------------------
+// LockableBackend (no-op for in-memory storage)
+// ---------------------------------------------------------------------------
+
+/// No-op lock guard for [`MemoryBackend`].
+///
+/// In-memory backends have no external resource to lock, so locking is
+/// a no-op. This guard satisfies the [`LockableBackend::LockGuard`]
+/// associated type.
+pub struct MemoryLockGuard;
+
+impl backend::LockableBackend for MemoryBackend {
+    type LockGuard = MemoryLockGuard;
+
+    /// Always succeeds — in-memory storage has no external contention.
+    ///
+    /// # Errors
+    ///
+    /// This method is infallible for `MemoryBackend`.
+    fn try_lock_exclusive(&self) -> Result<MemoryLockGuard, Self::Error> {
+        Ok(MemoryLockGuard)
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Snapshot helpers (std-only)
 // ---------------------------------------------------------------------------
 

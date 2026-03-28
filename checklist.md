@@ -338,7 +338,7 @@ Before writing any code, read these files:
 
   **Verify:** `cargo check -p phonograph_db --no-default-features` passes.
 
-- [ ] **4.3 — Implement `LockableBackend` for `MemoryBackend`.**
+- [x] **4.3 — Implement `LockableBackend` for `MemoryBackend`.**
   ```rust
   pub struct MemoryLockGuard;
 

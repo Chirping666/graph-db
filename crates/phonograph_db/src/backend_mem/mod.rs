@@ -19,4 +19,4 @@
 
 pub mod memory_backend;
 
-pub use memory_backend::{MemoryBackend, MemoryError};
+pub use memory_backend::{MemoryBackend, MemoryError, MemoryLockGuard};
