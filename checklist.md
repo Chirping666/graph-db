@@ -324,7 +324,7 @@ Before writing any code, read these files:
 
 > **Implements:** CLAUDE.md principle A1
 
-- [ ] **4.1 — Audit current `LockableBackend` trait definition.**
+- [x] **4.1 — Audit current `LockableBackend` trait definition.**
   Read `crates/phonograph_db/src/backend/` and determine: is `LockableBackend`
   `#[cfg(feature = "std")]`-gated? Does it reference `std` types? What about
   `OpenableBackend`? Document findings.
