@@ -281,7 +281,7 @@ Before writing any code, read these files:
 
   **Verify:** `cargo check -p phonograph_std` passes.
 
-- [ ] **3.3 — Update all tests to use explicit imports.**
+- [x] **3.3 — Update all tests to use explicit imports.**
   For every test file in `crates/phonograph_std/tests/`, rewrite imports:
   - Core vocabulary → `use phonograph::`
   - Database engine → `use phonograph_db::`

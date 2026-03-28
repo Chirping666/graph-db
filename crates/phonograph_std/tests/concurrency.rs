@@ -6,8 +6,8 @@
 use std::sync::Arc;
 use std::thread;
 
-use phonograph_std::db::builders::{EdgeBuilder, NodeBuilder, TypeDefinitionBuilder};
-use phonograph_std::types::{NodeId, Value};
+use phonograph::types::{NodeId, Value};
+use phonograph_db::db::builders::{EdgeBuilder, NodeBuilder, TypeDefinitionBuilder};
 use phonograph_std::FileDatabase;
 
 use std::sync::atomic::{AtomicBool, Ordering};

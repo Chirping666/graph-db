@@ -3,11 +3,11 @@
 //! These tests exercise the full persistence path: create file → write data →
 //! close → reopen → verify.
 
-use phonograph_std::backend::OpenableBackend;
+use phonograph_db::backend::OpenableBackend;
+use phonograph_db::storage::page::DEFAULT_PAGE_SIZE;
+use phonograph_db::storage::snapshot::SnapshotRoots;
+use phonograph_db::storage::{StorageEngine, StorageEngineConfig};
 use phonograph_std::backend_std::{FileBackend, FileBackendConfig};
-use phonograph_std::storage::page::DEFAULT_PAGE_SIZE;
-use phonograph_std::storage::snapshot::SnapshotRoots;
-use phonograph_std::storage::{StorageEngine, StorageEngineConfig};
 
 fn config() -> StorageEngineConfig {
     StorageEngineConfig {

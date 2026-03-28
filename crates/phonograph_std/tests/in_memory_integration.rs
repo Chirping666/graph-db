@@ -8,15 +8,15 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use phonograph_std::constraint::{
+use phonograph::constraint::{
     ChangeSet, ConstraintValidator, ConstraintViolation, ViolationSubject,
 };
-use phonograph_std::db::builders::{EdgeBuilder, NodeBuilder, TypeDefinitionBuilder};
-use phonograph_std::error::Error;
-use phonograph_std::backend_mem::MemoryBackend;
-use phonograph_std::inference::{InferenceMode, InferenceResult, InferenceRule, InferredFact};
-use phonograph_std::schema::{GraphView, PropertyKeyRegistryView, TypeRegistryView};
-use phonograph_std::types::{NodeId, PropertyKeyId, TypeId, Value};
+use phonograph::inference::{InferenceMode, InferenceResult, InferenceRule, InferredFact};
+use phonograph::schema::{GraphView, PropertyKeyRegistryView, TypeRegistryView};
+use phonograph::types::{NodeId, PropertyKeyId, TypeId, Value};
+use phonograph_db::backend_mem::MemoryBackend;
+use phonograph_db::db::builders::{EdgeBuilder, NodeBuilder, TypeDefinitionBuilder};
+use phonograph_db::error::Error;
 use phonograph_std::{MemoryDatabase, MemoryDatabaseExt};
 
 /// Helper: opens an in-memory database.

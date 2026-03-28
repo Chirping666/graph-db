@@ -1,13 +1,13 @@
 //! Shared test helpers for integration tests.
 
-use phonograph_std::constraint::{
+use phonograph::constraint::{
     ChangeSet, ConstraintValidator, ConstraintViolation, ViolationSubject,
 };
-use phonograph_std::db::builders::{EdgeBuilder, NodeBuilder, TypeDefinitionBuilder};
-use phonograph_std::error::Error;
-use phonograph_std::inference::{InferenceResult, InferenceRule, InferredFact};
-use phonograph_std::schema::{GraphView, PropertyKeyRegistryView, TypeRegistryView};
-use phonograph_std::types::{EdgeId, NodeId, PropertyKeyId, TypeId, Value};
+use phonograph::inference::{InferenceResult, InferenceRule, InferredFact};
+use phonograph::schema::{GraphView, PropertyKeyRegistryView, TypeRegistryView};
+use phonograph::types::{EdgeId, NodeId, PropertyKeyId, TypeId, Value};
+use phonograph_db::db::builders::{EdgeBuilder, NodeBuilder, TypeDefinitionBuilder};
+use phonograph_db::error::Error;
 use phonograph_std::{FileDatabase, MemoryDatabase};
 
 // ---------------------------------------------------------------------------
@@ -188,7 +188,7 @@ pub struct TestGraph {
 /// 3 edge types (knows, works_at, leads), 4 property keys,
 /// 8 nodes, and 12 edges.
 #[allow(dead_code)]
-pub fn build_test_graph<B: phonograph_std::backend::StorageBackend>(db: &phonograph_std::db::Database<B>) -> Result<TestGraph, Error> {
+pub fn build_test_graph<B: phonograph_db::backend::StorageBackend>(db: &phonograph_db::db::Database<B>) -> Result<TestGraph, Error> {
     let mut wtx = db.write_txn()?;
 
     // Types

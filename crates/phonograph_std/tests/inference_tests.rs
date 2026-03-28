@@ -4,17 +4,17 @@
 //! dispatch, materialized dispatch, caching, provenance queries, rule chaining,
 //! constraint interaction, and provenance persistence.
 
-use phonograph_std::constraint::{
+use phonograph::constraint::{
     ChangeSet, ConstraintValidator, ConstraintViolation, ViolationSubject,
 };
-use phonograph_std::db::builders::{NodeBuilder, TypeDefinitionBuilder};
-use phonograph_std::error::Error;
-use phonograph_std::InferenceError;
-use phonograph_std::inference::{
+use phonograph::inference::{
     InferenceMode, InferenceResult, InferenceRule, InferredFact,
 };
-use phonograph_std::schema::{GraphView, PropertyKeyRegistryView, TypeRegistryView};
-use phonograph_std::types::{EdgeId, NodeId, PropertyKeyId, TypeId, Value};
+use phonograph::schema::{GraphView, PropertyKeyRegistryView, TypeRegistryView};
+use phonograph::types::{EdgeId, NodeId, PropertyKeyId, TypeId, Value};
+use phonograph::InferenceError;
+use phonograph_db::db::builders::{NodeBuilder, TypeDefinitionBuilder};
+use phonograph_db::error::Error;
 use phonograph_std::FileDatabase;
 
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -126,7 +126,7 @@ impl InferenceRule for ChainingTestRule {
             facts.push(InferredFact::NewNode {
                 type_labels: vec![self.node_type_id],
                 properties: {
-                    let mut props = phonograph_std::types::PropertyMap::new();
+                    let mut props = phonograph::types::PropertyMap::new();
                     props.insert(
                         self.summary_key,
                         Value::String(format!("summary_of_{}", node.id.0)),
@@ -806,7 +806,7 @@ impl ConstraintValidator for TypeCheckValidator {
     ) -> Vec<ConstraintViolation> {
         let mut violations = Vec::new();
         for change in changes.edge_changes() {
-            if let phonograph_std::constraint::EdgeChange::Inserted(edge) = change {
+            if let phonograph::constraint::EdgeChange::Inserted(edge) = change {
                 // Check that source has the required type.
                 if let Some(src) = graph.get_node(edge.source) && !src.type_labels.contains(&self.required_node_type) {
                     violations.push(ConstraintViolation {
