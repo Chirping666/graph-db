@@ -19,11 +19,6 @@
 //! assert_eq!(rtx.node_count().unwrap(), 0);
 //! ```
 
-// Re-export the full vocabulary and database engine (decision R14).
-// phonograph_db already re-exports phonograph::*, so a single glob
-// brings in the entire public surface of both inner crates.
-pub use phonograph_db::*;
-
 pub mod backend_std;
 
 /// A database backed by a persistent file.

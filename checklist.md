@@ -276,7 +276,7 @@ Before writing any code, read these files:
 
   **Verify:** `cargo check -p phonograph_db` passes.
 
-- [ ] **3.2 — Remove `pub use phonograph_db::*` from `phonograph_std/src/lib.rs`.**
+- [x] **3.2 — Remove `pub use phonograph_db::*` from `phonograph_std/src/lib.rs`.**
   Delete the line and the R14 comment. Fix all broken internal imports.
 
   **Verify:** `cargo check -p phonograph_std` passes.
