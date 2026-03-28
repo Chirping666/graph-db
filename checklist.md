@@ -81,14 +81,14 @@ Before writing any code, read these files:
 
 ## Phase 0: Setup
 
-- [ ] **0.1 — Install the new project root `CLAUDE.md`.**
+- [x] **0.1 — Install the new project root `CLAUDE.md`.**
   Replace the existing `CLAUDE.md` at the project root with the new version that
   contains architectural principles A1–A6 and the updated verification checklist.
 
   **Verify:** `CLAUDE.md` at the project root contains the `## Architectural Principles`
   section with A1–A6.
 
-- [ ] **0.2 — Record the current test baseline.**
+- [x] **0.2 — Record the current test baseline.**
   ```bash
   cargo test --workspace 2>&1 | tail -5
   cargo clippy --workspace --all-targets -- -D warnings
