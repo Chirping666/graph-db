@@ -12,14 +12,14 @@
 
 use std::collections::BTreeMap;
 
-use phonograph_std::constraint::{
+use phonograph::constraint::{
     ChangeSet, ConstraintValidator, ConstraintViolation, ViolationSubject,
 };
-use phonograph_std::db::{EdgeBuilder, NodeBuilder, TypeDefinitionBuilder};
-use phonograph_std::inference::{InferenceMode, InferenceResult, InferenceRule, InferredFact};
-use phonograph_std::schema::{GraphView, PropertyKeyRegistryView, TypeRegistryView};
-use phonograph_std::types::{PropertyKeyId, TypeId, Value};
-use phonograph_std::error::Error;
+use phonograph::inference::{InferenceMode, InferenceResult, InferenceRule, InferredFact};
+use phonograph::schema::{GraphView, PropertyKeyRegistryView, TypeRegistryView};
+use phonograph::types::{NodeId, PropertyKeyId, TypeId, Value};
+use phonograph_db::db::builders::{EdgeBuilder, NodeBuilder, TypeDefinitionBuilder};
+use phonograph_db::error::Error;
 
 // ---------------------------------------------------------------------------
 // Custom constraint validator: MaxCardinalityValidator
@@ -382,8 +382,8 @@ fn main() -> Result<(), Error> {
 
 /// Helper: print the rdf:type edges for an individual, showing class labels.
 fn print_individual_types(
-    rtx: &phonograph_std::db::ReadTransaction<'_, phonograph_std::backend_mem::MemoryBackend>,
-    individual_id: phonograph_std::NodeId,
+    rtx: &phonograph_db::db::ReadTransaction<'_, phonograph_db::backend_mem::MemoryBackend>,
+    individual_id: NodeId,
     rdf_type_edge: TypeId,
     label_key: PropertyKeyId,
     name: &str,

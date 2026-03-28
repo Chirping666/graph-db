@@ -289,7 +289,7 @@ Before writing any code, read these files:
 
   **Verify:** `cargo test --workspace` — all tests pass.
 
-- [ ] **3.4 — Update all examples to use explicit imports.**
+- [x] **3.4 — Update all examples to use explicit imports.**
   Same approach for `crates/phonograph_std/examples/`.
 
   **Verify:**

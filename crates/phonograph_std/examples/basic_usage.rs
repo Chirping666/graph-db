@@ -3,9 +3,9 @@
 //! Demonstrates: opening a database, registering types and property keys,
 //! inserting nodes and edges, querying by type, and traversing edges.
 
-use phonograph_std::db::{EdgeBuilder, NodeBuilder, TypeDefinitionBuilder};
-use phonograph_std::error::Error;
-use phonograph_std::types::Value;
+use phonograph::types::Value;
+use phonograph_db::db::builders::{EdgeBuilder, NodeBuilder, TypeDefinitionBuilder};
+use phonograph_db::error::Error;
 
 fn main() -> Result<(), Error> {
     // --- 1. Open an in-memory database ---
