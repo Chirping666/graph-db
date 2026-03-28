@@ -18,7 +18,7 @@ use phonograph::types::{
 ///
 /// ```
 /// use phonograph_db::db::builders::NodeBuilder;
-/// use phonograph_db::types::{TypeId, PropertyKeyId, Value};
+/// use phonograph::types::{TypeId, PropertyKeyId, Value};
 ///
 /// let node = NodeBuilder::new()
 ///     .type_label(TypeId(1))
@@ -95,7 +95,7 @@ impl Default for NodeBuilder {
 ///
 /// ```
 /// use phonograph_db::db::builders::EdgeBuilder;
-/// use phonograph_db::types::{NodeId, TypeId};
+/// use phonograph::types::{NodeId, TypeId};
 ///
 /// let edge = EdgeBuilder::new(NodeId(1), NodeId(2))
 ///     .type_label(TypeId(10))

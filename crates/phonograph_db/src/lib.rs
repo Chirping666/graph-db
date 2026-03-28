@@ -16,6 +16,3 @@ pub mod error;
 pub(crate) mod sync;
 pub mod storage;
 pub mod db;
-
-// Re-export the vocabulary crate (decision R14).
-pub use phonograph::*;

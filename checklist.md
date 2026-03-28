@@ -267,7 +267,7 @@ Before writing any code, read these files:
 
 > **Implements:** CLAUDE.md principle A3
 
-- [ ] **3.1 — Remove `pub use phonograph::*` from `phonograph_db/src/lib.rs`.**
+- [x] **3.1 — Remove `pub use phonograph::*` from `phonograph_db/src/lib.rs`.**
   Delete the line. Fix all broken internal imports — change `use crate::types::*` to
   `use phonograph::types::*` etc.
 

@@ -35,7 +35,7 @@ use super::write_buffer::WriteBuffer;
 /// use phonograph_db::db::Database;
 /// use phonograph_db::db::DatabaseConfig;
 /// use phonograph_db::db::builders::{NodeBuilder, TypeDefinitionBuilder};
-/// use phonograph_db::types::Value;
+/// use phonograph::types::Value;
 ///
 /// let db = Database::create(phonograph_db::backend_mem::MemoryBackend::new(), DatabaseConfig::default()).unwrap();
 ///
@@ -139,7 +139,7 @@ impl<'db, B: crate::backend::StorageBackend> ReadTransaction<'db, B> {
     ///
     /// ```
     /// # use phonograph_db::db::{Database, DatabaseConfig, builders::*};
-    /// # use phonograph_db::types::Value;
+    /// # use phonograph::types::Value;
     /// # let db = Database::create(phonograph_db::backend_mem::MemoryBackend::new(), DatabaseConfig::default()).unwrap();
     /// # let mut wtx = db.write_txn().unwrap();
     /// # let t = wtx.register_type(TypeDefinitionBuilder::node_type("N").build()).unwrap();
