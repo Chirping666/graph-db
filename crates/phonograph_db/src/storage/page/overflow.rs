@@ -200,7 +200,8 @@ impl OverflowPage {
     ///
     /// # Errors
     ///
-    /// Returns an error on I/O failure, checksum mismatch, or length mismatch.
+    /// Returns an error on I/O failure, checksum mismatch, length mismatch,
+    /// or if the chain exceeds [`MAX_OVERFLOW_CHAIN_LENGTH`] pages.
     pub fn read_chain<B: ReadAt>(
         backend: &B,
         first_page: PageId,
@@ -210,8 +211,18 @@ impl OverflowPage {
         let mut result = Vec::with_capacity(expected_total as usize);
         let mut current = first_page;
         let mut buf = vec![0u8; page_size];
+        let mut pages_read: usize = 0;
 
         while !current.is_null() {
+            if pages_read >= MAX_OVERFLOW_CHAIN_LENGTH {
+                return Err(StorageError {
+                    message: format!(
+                        "overflow chain exceeded maximum length of {MAX_OVERFLOW_CHAIN_LENGTH} pages"
+                    ),
+                    #[cfg(feature = "std")]
+                    source: None,
+                });
+            }
             backend
                 .read_at(current.0 * page_size as u64, &mut buf)
                 .map_err(map_backend_err)?;
@@ -219,6 +230,7 @@ impl OverflowPage {
             let page = Self::parse(&buf, page_size)?;
             result.extend_from_slice(&page.data);
             current = page.next_page;
+            pages_read += 1;
         }
 
         if result.len() != expected_total as usize {

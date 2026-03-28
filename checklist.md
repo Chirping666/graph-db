@@ -394,7 +394,7 @@ Before writing any code, read these files:
 
   **Verify:** `cargo check -p phonograph_db` passes.
 
-- [ ] **5.2 — Enforce the limit in `read_chain`.**
+- [x] **5.2 — Enforce the limit in `read_chain`.**
   Add a counter. If it exceeds `MAX_OVERFLOW_CHAIN_LENGTH`, return `StorageError`.
 
   **Verify:** `cargo test --workspace` — all existing tests pass.
