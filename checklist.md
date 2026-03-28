@@ -298,7 +298,7 @@ Before writing any code, read these files:
   cargo run -p phonograph_std --example owl_lite_ontology
   ```
 
-- [ ] **3.5 — Update doc-tests across all three crates.**
+- [x] **3.5 — Update doc-tests across all three crates.**
   ```bash
   cargo test --workspace --doc
   ```
