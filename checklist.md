@@ -113,7 +113,7 @@ Before writing any code, read these files:
 
 > **Implements:** CLAUDE.md principle A4
 
-- [ ] **1.1 — Rewrite `crates/phonograph_db/src/sync.rs`.**
+- [x] **1.1 — Rewrite `crates/phonograph_db/src/sync.rs`.**
   Replace the current unconditional spin re-exports with a conditional module:
 
   ```rust
