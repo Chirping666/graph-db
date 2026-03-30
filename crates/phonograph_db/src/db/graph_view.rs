@@ -236,6 +236,11 @@ impl GraphView for OverlayGraphView<'_> {
             .collect()
     }
 
+    /// Returns all nodes whose property `key` equals `value`.
+    ///
+    /// Uses [`Value::total_eq()`] for comparison, which treats NaN as equal
+    /// to NaN (unlike IEEE 754 `PartialEq`). This ensures NaN-valued
+    /// properties are matchable within constraint validators and inference rules.
     fn nodes_by_property(&self, key: PropertyKeyId, value: &Value) -> Vec<&Node> {
         self.nodes
             .values()

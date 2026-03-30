@@ -810,7 +810,7 @@ This is documented as a known limitation.
 
   **Verify:** CHANGELOG.md is well-formatted.
 
-- [ ] **7.2 — Update doc comments on modified methods.**
+- [x] **7.2 — Update doc comments on modified methods.**
   Verify that `OverlayGraphView::build`, `nodes_by_type`, `edges_by_type`, and
   `nodes_by_property` have accurate doc comments reflecting their new behavior.
   Add a note to `nodes_by_property` mentioning `total_eq` semantics.

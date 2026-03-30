@@ -388,6 +388,10 @@ impl<'db, B: crate::backend::StorageBackend> WriteTransaction<'db, B> {
 
     /// Returns nodes by property, full scan with overlay.
     ///
+    /// Uses [`Value::total_eq()`] for comparison, which treats NaN as equal
+    /// to NaN (unlike IEEE 754 `PartialEq`). This ensures NaN-valued
+    /// properties are matchable.
+    ///
     /// # Errors
     ///
     /// Returns an error on storage I/O failure.

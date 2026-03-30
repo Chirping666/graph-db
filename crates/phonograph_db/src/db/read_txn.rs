@@ -400,6 +400,9 @@ impl<'db, B: crate::backend::StorageBackend> ReadTransaction<'db, B> {
     /// Returns all nodes that have the given property set to the given value.
     ///
     /// This is a full scan of the Node Store (no property index in v1).
+    /// Uses [`Value::total_eq()`] for comparison, which treats NaN as equal
+    /// to NaN (unlike IEEE 754 `PartialEq`). This ensures NaN-valued
+    /// properties are matchable.
     ///
     /// # Errors
     ///
