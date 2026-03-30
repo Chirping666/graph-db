@@ -10,6 +10,12 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "0.4"
 
+[dependencies.phonograph]
+path = "../crates/phonograph"
+
+[dependencies.phonograph_db]
+path = "../crates/phonograph_db"
+
 [dependencies.phonograph_std]
 path = "../crates/phonograph_std"
 
@@ -25,4 +31,24 @@ doc = false
 [[bin]]
 name = "fuzz_api_operations"
 path = "fuzz_targets/fuzz_api_operations.rs"
+doc = false
+
+[[bin]]
+name = "leaf_page_parse"
+path = "fuzz_targets/leaf_page_parse.rs"
+doc = false
+
+[[bin]]
+name = "interior_page_parse"
+path = "fuzz_targets/interior_page_parse.rs"
+doc = false
+
+[[bin]]
+name = "overflow_page_parse"
+path = "fuzz_targets/overflow_page_parse.rs"
+doc = false
+
+[[bin]]
+name = "superblock_validation"
+path = "fuzz_targets/superblock_validation.rs"
 doc = false

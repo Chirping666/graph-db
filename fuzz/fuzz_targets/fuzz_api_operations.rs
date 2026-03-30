@@ -9,8 +9,8 @@
 #![no_main]
 use libfuzzer_sys::fuzz_target;
 
-use phonograph_std::db::builders::{EdgeBuilder, NodeBuilder, TypeDefinitionBuilder};
-use phonograph_std::types::{EdgeId, NodeId, Value};
+use phonograph::types::{EdgeId, NodeId, Value};
+use phonograph_db::db::builders::{EdgeBuilder, NodeBuilder, TypeDefinitionBuilder};
 
 fuzz_target!(|data: &[u8]| {
     let db = match phonograph_std::open_in_memory() {

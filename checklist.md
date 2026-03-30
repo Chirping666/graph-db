@@ -467,7 +467,7 @@ Before writing any code, read these files:
 
   **Verify:** Directory structure exists.
 
-- [ ] **7.2 — Create fuzz targets.**
+- [x] **7.2 — Create fuzz targets.**
   One file per target in `fuzz/fuzz_targets/`:
   - `leaf_page_parse.rs`
   - `interior_page_parse.rs`
