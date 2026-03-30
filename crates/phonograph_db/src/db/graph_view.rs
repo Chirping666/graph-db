@@ -62,7 +62,7 @@ impl<'s> OverlayGraphView<'s> {
     /// adjacency indexes. The result is a self-contained snapshot of the
     /// "as if committed" state.
     pub fn build(
-        base: &dyn SnapshotReader,
+        base: &impl SnapshotReader,
         buffer: &WriteBuffer,
         schema: &'s SchemaCache,
     ) -> Self {

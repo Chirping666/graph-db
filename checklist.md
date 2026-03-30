@@ -181,7 +181,7 @@ Before writing any code, read these files:
   **Verify:** `cargo check -p phonograph_db` — expect errors from mismatched types (not yet
   propagated). That is fine; this step just establishes the struct.
 
-- [ ] **1.2 — Change `build()` from `&dyn SnapshotReader` to `&impl SnapshotReader`.**
+- [x] **1.2 — Change `build()` from `&dyn SnapshotReader` to `&impl SnapshotReader`.**
   In the same file, change the `impl` block and `build` signature:
 
   Before:
