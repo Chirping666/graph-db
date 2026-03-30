@@ -428,7 +428,7 @@ Before writing any code, read these files:
 
   **Verify:** `cargo test -p phonograph -- total_eq` passes.
 
-- [ ] **6.3 — Add `WriteLockTimeout` variant to `TransactionError`.**
+- [x] **6.3 — Add `WriteLockTimeout` variant to `TransactionError`.**
   In `crates/phonograph_db/src/error/mod.rs`. Update `Display`.
 
   **Verify:** `cargo check -p phonograph_db` passes.
