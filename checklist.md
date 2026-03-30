@@ -534,7 +534,7 @@ This is documented as a known limitation.
   cargo test -p phonograph_db -- graph_view
   ```
 
-- [ ] **3.6 — Add test: changeset-scoped load excludes unrelated types.**
+- [x] **3.6 — Add test: changeset-scoped load excludes unrelated types.**
   In `graph_view.rs` tests, add a test that:
   1. Creates a `MockSnapshot` with nodes of type A and type B.
   2. Builds an overlay with `affected_types = Some(&[type_a_id])`.

@@ -557,4 +557,21 @@ mod tests {
         let result = view.edges_by_type(relationship_id, false);
         assert!(result.is_empty());
     }
+
+    #[test]
+    fn scoped_preload_excludes_unrelated_types() {
+        let type_a = TypeId(10);
+        let type_b = TypeId(20);
+
+        let mut snap = MockSnapshot::new();
+        snap.nodes.insert(NodeId(1), make_node(1, type_a.0));
+        snap.nodes.insert(NodeId(2), make_node(2, type_b.0));
+
+        let buf = WriteBuffer::new();
+        let schema = SchemaCache::new();
+        let view = OverlayGraphView::build(&snap, &buf, &schema, Some(&[type_a]));
+
+        assert!(view.get_node(NodeId(1)).is_some(), "type A node should be loaded");
+        assert!(view.get_node(NodeId(2)).is_none(), "type B node should be excluded");
+    }
 }
