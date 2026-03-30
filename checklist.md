@@ -560,7 +560,7 @@ Before writing any code, read these files:
 
   **Verify:** All 13 pass.
 
-- [ ] **9.5 — Examples still run.**
+- [x] **9.5 — Examples still run.**
   ```bash
   cargo run -p phonograph_std --example basic_usage
   cargo run -p phonograph_std --example owl_lite_ontology
