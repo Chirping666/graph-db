@@ -689,7 +689,7 @@ This is documented as a known limitation.
 
   **Verify:** `cargo check -p phonograph_db` — clean compile.
 
-- [ ] **5.2 — Add a unit test for counter overflow detection.**
+- [x] **5.2 — Add a unit test for counter overflow detection.**
   In `database.rs` tests, add a test that:
   1. Creates a fresh in-memory database.
   2. Manually writes a schema counter entry with value `u64::MAX` for counter

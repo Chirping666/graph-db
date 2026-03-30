@@ -672,4 +672,61 @@ mod tests {
 
         handle.join().unwrap();
     }
+
+    #[test]
+    fn counter_overflow_detected_on_open() {
+        use crate::storage::serialization;
+
+        // Create a valid in-memory database and persist schema via a commit.
+        let db = create_test_db();
+        {
+            let wtx = db.write_txn().unwrap();
+            wtx.commit().unwrap();
+        }
+
+        // Extract the raw bytes of the database.
+        let bytes = db.with_backend(|b| b.as_bytes().to_vec());
+        drop(db);
+
+        // Reopen the engine directly and inject a counter with u64::MAX.
+        let backend = MemoryBackend::from_bytes(bytes);
+        let engine_config = crate::storage::StorageEngineConfig {
+            page_size: DatabaseConfig::default().page_size,
+            buffer_pool_frames: DatabaseConfig::default().buffer_pool_frames,
+            application_id: DatabaseConfig::default().application_id,
+        };
+        let mut engine = crate::storage::StorageEngine::open(backend, engine_config).unwrap();
+        let snapshot = engine.current_snapshot();
+        let mut roots = snapshot.roots.clone();
+        let txn_id = snapshot.transaction_id + 1;
+
+        // Write next_type_id counter (key [0x03, 0x03]) with value u64::MAX.
+        let key = serialization::encode_schema_counter_key(0x03);
+        let value = u64::MAX.to_le_bytes().to_vec();
+        let cow = engine
+            .insert(roots.schema_store, &key, &value, txn_id)
+            .unwrap();
+        roots.schema_store = cow.new_root;
+
+        // Commit the poisoned snapshot.
+        engine.commit(roots, Vec::new()).unwrap();
+
+        // Extract the poisoned bytes and try to open as a Database.
+        let poisoned_bytes = engine.backend().as_bytes().to_vec();
+        drop(engine);
+
+        let result = Database::open(
+            MemoryBackend::from_bytes(poisoned_bytes),
+            DatabaseConfig::default(),
+        );
+        let err = match result {
+            Err(e) => e,
+            Ok(_) => panic!("should fail when counter exceeds u32::MAX"),
+        };
+        let err_msg = alloc::format!("{err}");
+        assert!(
+            err_msg.contains("exceeds u32::MAX"),
+            "error should mention 'exceeds u32::MAX', got: {err_msg}"
+        );
+    }
 }
