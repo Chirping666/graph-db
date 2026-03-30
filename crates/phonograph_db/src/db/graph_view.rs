@@ -397,4 +397,56 @@ mod tests {
         );
         assert_eq!(result.len(), 1);
     }
+
+    #[test]
+    fn nodes_by_type_with_subtypes() {
+        use phonograph::types::{TypeDefinition, TypeKind};
+
+        let mut schema = SchemaCache::new();
+        // Register parent type "Animal" (gets TypeId assigned by schema cache).
+        let animal_id = schema
+            .register_type(TypeDefinition {
+                id: TypeId(0), // overwritten by register_type
+                name: "Animal".into(),
+                kind: TypeKind::Node,
+                supertypes: vec![],
+                property_declarations: vec![],
+                open: true,
+                metadata: PropertyMap::new(),
+            })
+            .unwrap();
+        // Register child type "Dog" with Animal as supertype.
+        let dog_id = schema
+            .register_type(TypeDefinition {
+                id: TypeId(0),
+                name: "Dog".into(),
+                kind: TypeKind::Node,
+                supertypes: vec![animal_id],
+                property_declarations: vec![],
+                open: true,
+                metadata: PropertyMap::new(),
+            })
+            .unwrap();
+
+        let mut snap = MockSnapshot::new();
+        let dog_node = Node {
+            id: NodeId(1),
+            type_labels: vec![dog_id],
+            properties: PropertyMap::new(),
+            is_anonymous: false,
+        };
+        snap.nodes.insert(NodeId(1), dog_node);
+
+        let buf = WriteBuffer::new();
+        let view = OverlayGraphView::build(&snap, &buf, &schema);
+
+        // With include_subtypes=true, querying Animal should find the Dog node.
+        let result = view.nodes_by_type(animal_id, true);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].id, NodeId(1));
+
+        // With include_subtypes=false, querying Animal should NOT find the Dog node.
+        let result = view.nodes_by_type(animal_id, false);
+        assert!(result.is_empty());
+    }
 }

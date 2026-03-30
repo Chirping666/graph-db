@@ -326,7 +326,7 @@ Before writing any code, read these files:
 
   **Verify:** `cargo check -p phonograph_db` — clean compile.
 
-- [ ] **2.3 — Add unit test for subtype resolution in `OverlayGraphView`.**
+- [x] **2.3 — Add unit test for subtype resolution in `OverlayGraphView`.**
   In the `#[cfg(test)] mod tests` block of `graph_view.rs`, add a test that:
   1. Creates a `SchemaCache` with a parent type `Animal` and a child type `Dog`
      where `Dog`'s `supertypes` contains `Animal`'s `TypeId`.
