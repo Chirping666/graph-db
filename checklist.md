@@ -134,7 +134,7 @@ Before writing any code, read these files:
 
   **Verify:** Zero failures, zero clippy warnings.
 
-- [ ] **0.2 — Verify the starting state of targeted files.**
+- [x] **0.2 — Verify the starting state of targeted files.**
   ```bash
   grep -n 'dyn SnapshotReader' crates/phonograph_db/src/db/graph_view.rs
   grep -n 'dyn SnapshotReader' crates/phonograph_db/src/db/write_txn.rs
