@@ -344,7 +344,7 @@ Before writing any code, read these files:
   cargo test -p phonograph_db -- graph_view::tests::nodes_by_type_with_subtypes
   ```
 
-- [ ] **2.4 — Add unit test for `edges_by_type` subtype resolution.**
+- [x] **2.4 — Add unit test for `edges_by_type` subtype resolution.**
   Same pattern as 2.3 but for edges.
 
   **Verify:**

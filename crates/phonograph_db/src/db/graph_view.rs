@@ -449,4 +449,57 @@ mod tests {
         let result = view.nodes_by_type(animal_id, false);
         assert!(result.is_empty());
     }
+
+    #[test]
+    fn edges_by_type_with_subtypes() {
+        use phonograph::types::{TypeDefinition, TypeKind};
+
+        let mut schema = SchemaCache::new();
+        let relationship_id = schema
+            .register_type(TypeDefinition {
+                id: TypeId(0),
+                name: "Relationship".into(),
+                kind: TypeKind::Edge,
+                supertypes: vec![],
+                property_declarations: vec![],
+                open: true,
+                metadata: PropertyMap::new(),
+            })
+            .unwrap();
+        let friendship_id = schema
+            .register_type(TypeDefinition {
+                id: TypeId(0),
+                name: "Friendship".into(),
+                kind: TypeKind::Edge,
+                supertypes: vec![relationship_id],
+                property_declarations: vec![],
+                open: true,
+                metadata: PropertyMap::new(),
+            })
+            .unwrap();
+
+        let mut snap = MockSnapshot::new();
+        snap.nodes.insert(NodeId(1), make_node(1, 1));
+        snap.nodes.insert(NodeId(2), make_node(2, 1));
+        let edge = Edge {
+            id: EdgeId(1),
+            type_labels: vec![friendship_id],
+            source: NodeId(1),
+            target: NodeId(2),
+            properties: PropertyMap::new(),
+        };
+        snap.edges.insert(EdgeId(1), edge);
+
+        let buf = WriteBuffer::new();
+        let view = OverlayGraphView::build(&snap, &buf, &schema);
+
+        // With include_subtypes=true, querying Relationship should find the Friendship edge.
+        let result = view.edges_by_type(relationship_id, true);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].id, EdgeId(1));
+
+        // With include_subtypes=false, querying Relationship should NOT find the Friendship edge.
+        let result = view.edges_by_type(relationship_id, false);
+        assert!(result.is_empty());
+    }
 }
