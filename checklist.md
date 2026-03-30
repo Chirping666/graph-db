@@ -461,7 +461,7 @@ Before writing any code, read these files:
 
 > **Implements:** CLAUDE.md principle A5
 
-- [ ] **7.1 — Create fuzz directory structure.**
+- [x] **7.1 — Create fuzz directory structure.**
   Create `fuzz/Cargo.toml` and `fuzz/fuzz_targets/`. The fuzz crate must NOT be in the
   workspace `members` list — add `"fuzz"` to `exclude` if needed.
 
