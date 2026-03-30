@@ -210,7 +210,7 @@ Before writing any code, read these files:
   **Verify:** `cargo check -p phonograph_db` — may still have errors from the `GraphView`
   impl. Proceed to 1.3.
 
-- [ ] **1.3 — Update `GraphView` impl to use `OverlayGraphView<'_>`.**
+- [x] **1.3 — Update `GraphView` impl to use `OverlayGraphView<'_>`.**
   Change:
   ```rust
   impl GraphView for OverlayGraphView {
