@@ -1,6 +1,6 @@
 # checklist.md — Architectural Hardening
 
-**Status:** Pending
+**Status:** Complete
 
 This checklist brings the codebase into conformance with architectural principles A1–A6
 defined in the project root `CLAUDE.md`. It also adds defense-in-depth hardening, new API
@@ -568,7 +568,7 @@ Before writing any code, read these files:
 
 ### ▸ Phase 9 Gate — COMPLETE
 
-- [ ] **All verification checks pass.**
+- [x] **All verification checks pass.**
   Write a completion report to `completion-report.md` at the project root, documenting:
   - Status
   - What was changed (summary of each phase)
