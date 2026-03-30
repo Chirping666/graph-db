@@ -605,4 +605,50 @@ mod tests {
         let db = create_test_db();
         assert!(db.missing_extensions().is_empty());
     }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn try_write_txn_no_contention() {
+        let db = create_test_db();
+        let txn = db.try_write_txn(std::time::Duration::from_millis(100));
+        assert!(txn.is_ok());
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn try_write_txn_timeout_under_contention() {
+        use crate::error::TransactionError;
+
+        let db = Arc::new(create_test_db());
+        // Hold the write lock so try_write_txn must time out.
+        let _wtx = db.write_txn().unwrap();
+        let result = db.try_write_txn(std::time::Duration::from_millis(5));
+        assert!(matches!(
+            result,
+            Err(Error::Transaction(TransactionError::WriteLockTimeout))
+        ));
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn try_write_txn_succeeds_after_lock_released() {
+        let db = Arc::new(create_test_db());
+        let db2 = Arc::clone(&db);
+
+        // Spawn a thread that holds the write lock briefly.
+        let handle = std::thread::spawn(move || {
+            let _wtx = db2.write_txn().unwrap();
+            std::thread::sleep(std::time::Duration::from_millis(20));
+            // _wtx dropped here, releasing the lock
+        });
+
+        // Give the thread time to acquire the lock.
+        std::thread::sleep(std::time::Duration::from_millis(5));
+
+        // Try with a generous timeout — should succeed after the lock is released.
+        let result = db.try_write_txn(std::time::Duration::from_secs(2));
+        assert!(result.is_ok());
+
+        handle.join().unwrap();
+    }
 }

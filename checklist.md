@@ -439,7 +439,7 @@ Before writing any code, read these files:
 
   **Verify:** `cargo check -p phonograph_db` and `cargo check -p phonograph_db --no-default-features` both pass.
 
-- [ ] **6.5 — Add tests for `try_write_txn`.**
+- [x] **6.5 — Add tests for `try_write_txn`.**
   1. No contention → succeeds.
   2. Timeout under contention → `WriteLockTimeout`.
   3. Lock released in time → succeeds.
