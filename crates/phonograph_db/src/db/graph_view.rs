@@ -239,7 +239,7 @@ impl GraphView for OverlayGraphView<'_> {
     fn nodes_by_property(&self, key: PropertyKeyId, value: &Value) -> Vec<&Node> {
         self.nodes
             .values()
-            .filter(|n| n.properties.get(&key) == Some(value))
+            .filter(|n| n.properties.get(&key).is_some_and(|v| v.total_eq(value)))
             .collect()
     }
 }

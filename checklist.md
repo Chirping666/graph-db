@@ -573,7 +573,7 @@ This is documented as a known limitation.
 
 > **Implements:** CLAUDE.md principle A8
 
-- [ ] **4.1 — Fix `nodes_by_property` in `OverlayGraphView`.**
+- [x] **4.1 — Fix `nodes_by_property` in `OverlayGraphView`.**
   In `graph_view.rs`, change the `nodes_by_property` method:
 
   Before:
