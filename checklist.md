@@ -596,7 +596,7 @@ This is documented as a known limitation.
 
   **Verify:** `cargo check -p phonograph_db` — clean compile.
 
-- [ ] **4.2 — Fix `nodes_by_property` in `WriteTransaction`.**
+- [x] **4.2 — Fix `nodes_by_property` in `WriteTransaction`.**
   In `write_txn.rs`, find the `nodes_by_property` method:
   ```rust
   pub fn nodes_by_property(

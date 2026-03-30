@@ -399,7 +399,7 @@ impl<'db, B: crate::backend::StorageBackend> WriteTransaction<'db, B> {
         let all = self.all_nodes()?;
         Ok(all
             .into_iter()
-            .filter(|n| n.properties.get(&key) == Some(value))
+            .filter(|n| n.properties.get(&key).is_some_and(|v| v.total_eq(value)))
             .collect())
     }
 
