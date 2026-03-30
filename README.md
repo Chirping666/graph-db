@@ -31,21 +31,23 @@ Most users should depend on `phonograph_std`. For `no_std` environments, depend 
 - **`no_std + alloc` database engine** — the core engine runs on bare metal with a heap allocator
 - **In-memory backend** — for testing or non-persistent use cases, with optional snapshot-to-disk
 - **Pure Rust** — no external database dependencies; the entire storage engine is implemented from scratch
-- **Explicit transaction model** — `read_txn()` / `write_txn()` / `commit()`
+- **Explicit transaction model** — `read_txn()` / `write_txn()` / `commit()`, plus `try_write_txn(timeout)` for bounded lock acquisition
 
 ## Quick Start
 
-Add `phonograph_std` to your `Cargo.toml`:
+Add the workspace crates to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-phonograph_std = "0.1"
+phonograph = "0.1"       # core types (Value, NodeId, etc.)
+phonograph_db = "0.1"    # database engine (builders, errors)
+phonograph_std = "0.1"   # platform layer (open, open_in_memory)
 ```
 
 ```rust
-use phonograph_std::db::{NodeBuilder, TypeDefinitionBuilder};
-use phonograph_std::error::Error;
-use phonograph_std::types::Value;
+use phonograph::types::Value;
+use phonograph_db::db::builders::{NodeBuilder, TypeDefinitionBuilder};
+use phonograph_db::error::Error;
 
 fn main() -> Result<(), Error> {
     // Open an in-memory database
@@ -100,7 +102,7 @@ fn main() -> Result<(), Error> {
 
 - **phonograph** — Core types (`Node`, `Edge`, `Value`, `TypeDefinition`), traits (`ConstraintValidator`, `InferenceRule`, `GraphView`), vocabulary error types
 - **phonograph_db** — Copy-on-Write B+ trees, buffer pool, page allocator, dual-superblock atomic commit, `Database<B>` generic over storage backend
-- **phonograph_std** — `FileBackend` with OS file locking, `AnyBackend` enum dispatch, `open()` / `open_in_memory()` convenience constructors
+- **phonograph_std** — `FileBackend` with OS file locking, concrete `FileDatabase` / `MemoryDatabase` type aliases, `open()` / `open_in_memory()` convenience constructors
 
 ## Extension System
 
@@ -122,7 +124,7 @@ phonograph_db = { version = "0.1", default-features = false }
 ```
 
 ```rust
-use phonograph_db::{Database, DatabaseConfig};
+use phonograph_db::db::{Database, DatabaseConfig};
 use phonograph_db::backend_mem::MemoryBackend;
 
 let db = Database::create(MemoryBackend::new(), DatabaseConfig::default())?;
@@ -133,7 +135,7 @@ let db = Database::create(MemoryBackend::new(), DatabaseConfig::default())?;
 - `nodes_by_property()` performs a full scan (no property value index in v0.1)
 - Query methods return owned `Vec`s (no streaming iterator API)
 - No batch insert API
-- `write_txn()` blocks indefinitely when another write transaction is active (no timeout)
+- `write_txn()` blocks indefinitely when another write transaction is active; use `try_write_txn(timeout)` (requires `std`) for a bounded wait
 
 ## License
 

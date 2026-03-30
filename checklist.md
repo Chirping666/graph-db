@@ -496,7 +496,7 @@ Before writing any code, read these files:
 
 ## Phase 8: Documentation & Metadata Updates
 
-- [ ] **8.1 — Update `README.md`.**
+- [x] **8.1 — Update `README.md`.**
   Update Quick Start to use explicit imports. Remove `AnyBackend` mentions.
   Document `try_write_txn`.
 
