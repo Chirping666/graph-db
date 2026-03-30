@@ -574,4 +574,30 @@ mod tests {
         assert!(view.get_node(NodeId(1)).is_some(), "type A node should be loaded");
         assert!(view.get_node(NodeId(2)).is_none(), "type B node should be excluded");
     }
+
+    #[test]
+    fn scoped_preload_adjacency_neighbors_included() {
+        let type_x = TypeId(10);
+        let type_y = TypeId(20);
+
+        // Base snapshot: node 1 (type X) --edge--> node 2 (type Y).
+        let mut snap = MockSnapshot::new();
+        snap.nodes.insert(NodeId(1), make_node(1, type_x.0));
+        snap.nodes.insert(NodeId(2), make_node(2, type_y.0));
+        snap.edges.insert(EdgeId(1), make_edge(1, 1, 2, type_x.0));
+
+        // Buffer has an update to node 1 (changed node).
+        let mut buf = WriteBuffer::new();
+        let before = make_node(1, type_x.0);
+        let after = make_node(1, type_x.0); // same shape, simulates a property change
+        buf.update_node(before, after);
+
+        let schema = SchemaCache::new();
+        // Scope to type_x only — node 2 is type_y, but is an adjacency neighbor.
+        let view = OverlayGraphView::build(&snap, &buf, &schema, Some(&[type_x]));
+
+        assert!(view.get_node(NodeId(1)).is_some(), "changed node should be loaded");
+        assert!(view.get_node(NodeId(2)).is_some(), "adjacency neighbor should be loaded");
+        assert!(view.get_edge(EdgeId(1)).is_some(), "connecting edge should be loaded");
+    }
 }

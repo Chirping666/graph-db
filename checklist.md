@@ -549,7 +549,7 @@ This is documented as a known limitation.
   cargo test -p phonograph_db -- graph_view::tests::scoped_preload
   ```
 
-- [ ] **3.7 — Add test: adjacency neighbors are included in scoped load.**
+- [x] **3.7 — Add test: adjacency neighbors are included in scoped load.**
   Test that when a changed node (in the buffer) has outgoing edges in the base snapshot
   to a node of a different type, that neighbor node IS still loaded into the overlay.
 
