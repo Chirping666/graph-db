@@ -522,7 +522,7 @@ This is documented as a known limitation.
 
   **Verify:** `cargo check -p phonograph_db` — clean compile.
 
-- [ ] **3.5 — Update test call sites in `graph_view.rs`.**
+- [x] **3.5 — Update test call sites in `graph_view.rs`.**
   All test calls to `OverlayGraphView::build(&snap, &buf, &schema)` need the fourth
   argument. For tests, pass `None` to preserve existing behavior:
   ```rust

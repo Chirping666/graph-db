@@ -329,7 +329,7 @@ mod tests {
         snap.nodes.insert(NodeId(1), make_node(1, 1));
         let buf = WriteBuffer::new();
         let schema = SchemaCache::new();
-        let view = OverlayGraphView::build(&snap, &buf, &schema);
+        let view = OverlayGraphView::build(&snap, &buf, &schema, None);
 
         assert!(view.get_node(NodeId(1)).is_some());
     }
@@ -342,7 +342,7 @@ mod tests {
         let mut buf = WriteBuffer::new();
         buf.delete_node(node);
         let schema = SchemaCache::new();
-        let view = OverlayGraphView::build(&snap, &buf, &schema);
+        let view = OverlayGraphView::build(&snap, &buf, &schema, None);
 
         assert!(view.get_node(NodeId(1)).is_none());
     }
@@ -353,7 +353,7 @@ mod tests {
         let mut buf = WriteBuffer::new();
         buf.insert_node(make_node(2, 1));
         let schema = SchemaCache::new();
-        let view = OverlayGraphView::build(&snap, &buf, &schema);
+        let view = OverlayGraphView::build(&snap, &buf, &schema, None);
 
         assert!(view.get_node(NodeId(2)).is_some());
     }
@@ -369,7 +369,7 @@ mod tests {
         let mut buf = WriteBuffer::new();
         buf.update_node(node, updated);
         let schema = SchemaCache::new();
-        let view = OverlayGraphView::build(&snap, &buf, &schema);
+        let view = OverlayGraphView::build(&snap, &buf, &schema, None);
 
         let n = view.get_node(NodeId(1)).unwrap();
         assert_eq!(n.type_labels.len(), 2);
@@ -391,7 +391,7 @@ mod tests {
         buf.insert_edge(make_edge(3, 1, 2, 10));
 
         let schema = SchemaCache::new();
-        let view = OverlayGraphView::build(&snap, &buf, &schema);
+        let view = OverlayGraphView::build(&snap, &buf, &schema, None);
 
         let out = view.outgoing_edges(NodeId(1), None);
         assert_eq!(out.len(), 2); // e2 + e3 (e1 deleted)
@@ -410,7 +410,7 @@ mod tests {
         buf.insert_node(make_node(2, 5));
 
         let schema = SchemaCache::new();
-        let view = OverlayGraphView::build(&snap, &buf, &schema);
+        let view = OverlayGraphView::build(&snap, &buf, &schema, None);
 
         let result = view.nodes_by_type(TypeId(5), false);
         assert_eq!(result.len(), 2);
@@ -426,7 +426,7 @@ mod tests {
         buf.delete_node(node);
 
         let schema = SchemaCache::new();
-        let view = OverlayGraphView::build(&snap, &buf, &schema);
+        let view = OverlayGraphView::build(&snap, &buf, &schema, None);
 
         let result = view.nodes_by_type(TypeId(5), false);
         assert!(result.is_empty());
@@ -444,7 +444,7 @@ mod tests {
         buf.insert_node(node);
 
         let schema = SchemaCache::new();
-        let view = OverlayGraphView::build(&snap, &buf, &schema);
+        let view = OverlayGraphView::build(&snap, &buf, &schema, None);
 
         let result = view.nodes_by_property(
             PropertyKeyId(1),
@@ -493,7 +493,7 @@ mod tests {
         snap.nodes.insert(NodeId(1), dog_node);
 
         let buf = WriteBuffer::new();
-        let view = OverlayGraphView::build(&snap, &buf, &schema);
+        let view = OverlayGraphView::build(&snap, &buf, &schema, None);
 
         // With include_subtypes=true, querying Animal should find the Dog node.
         let result = view.nodes_by_type(animal_id, true);
@@ -546,7 +546,7 @@ mod tests {
         snap.edges.insert(EdgeId(1), edge);
 
         let buf = WriteBuffer::new();
-        let view = OverlayGraphView::build(&snap, &buf, &schema);
+        let view = OverlayGraphView::build(&snap, &buf, &schema, None);
 
         // With include_subtypes=true, querying Relationship should find the Friendship edge.
         let result = view.edges_by_type(relationship_id, true);
