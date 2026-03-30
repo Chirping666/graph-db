@@ -551,7 +551,7 @@ Before writing any code, read these files:
   cargo check -p phonograph_db --no-default-features
   ```
 
-- [ ] **9.3 — Regression test count.**
+- [x] **9.3 — Regression test count.**
   Compare against Phase 0 baseline. All previously passing tests still pass.
   New tests appear in the count.
 
