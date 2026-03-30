@@ -300,7 +300,7 @@ Before writing any code, read these files:
 
   **Verify:** `cargo check -p phonograph_db` — clean compile.
 
-- [ ] **2.2 — Implement subtype resolution in `edges_by_type`.**
+- [x] **2.2 — Implement subtype resolution in `edges_by_type`.**
   Same pattern. Replace:
   ```rust
   fn edges_by_type(&self, type_id: TypeId, include_subtypes: bool) -> Vec<&Edge> {

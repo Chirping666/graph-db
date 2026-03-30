@@ -169,10 +169,15 @@ impl GraphView for OverlayGraphView<'_> {
     }
 
     fn edges_by_type(&self, type_id: TypeId, include_subtypes: bool) -> Vec<&Edge> {
-        let _ = include_subtypes; // same limitation as nodes_by_type
+        use phonograph::schema::TypeRegistryView;
+
+        let mut type_ids = alloc::vec![type_id];
+        if include_subtypes {
+            type_ids.extend(self.schema.all_subtypes(type_id));
+        }
         self.edges
             .values()
-            .filter(|e| e.type_labels.contains(&type_id))
+            .filter(|e| type_ids.iter().any(|t| e.type_labels.contains(t)))
             .collect()
     }
 
