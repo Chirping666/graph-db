@@ -555,7 +555,7 @@ Before writing any code, read these files:
   Compare against Phase 0 baseline. All previously passing tests still pass.
   New tests appear in the count.
 
-- [ ] **9.4 — Run all 13 verification checks from `CLAUDE.md`.**
+- [x] **9.4 — Run all 13 verification checks from `CLAUDE.md`.**
   Execute every command from the Verification Checklist table. All 13 must pass.
 
   **Verify:** All 13 pass.
