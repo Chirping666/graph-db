@@ -652,7 +652,7 @@ This is documented as a known limitation.
 
 > **Implements:** CLAUDE.md principle A5
 
-- [ ] **5.1 — Add bounds checking to `load_schema` counter deserialization.**
+- [x] **5.1 — Add bounds checking to `load_schema` counter deserialization.**
   In `crates/phonograph_db/src/db/database.rs`, find the counter loading code in
   `load_schema()`:
 

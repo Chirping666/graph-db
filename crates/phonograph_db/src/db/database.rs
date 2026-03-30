@@ -273,8 +273,29 @@ impl<B: StorageBackend> Database<B> {
                 match key[1] {
                     0x01 => cache.next_node_id = counter_val,
                     0x02 => cache.next_edge_id = counter_val,
-                    0x03 => cache.next_type_id = counter_val as u32,
-                    0x04 => cache.next_property_key_id = counter_val as u32,
+                    0x03 => {
+                        cache.next_type_id = u32::try_from(counter_val).map_err(|_| {
+                            StorageError {
+                                message: alloc::format!(
+                                    "schema: next_type_id counter {counter_val} exceeds u32::MAX"
+                                ),
+                                #[cfg(feature = "std")]
+                                source: None,
+                            }
+                        })?;
+                    }
+                    0x04 => {
+                        cache.next_property_key_id =
+                            u32::try_from(counter_val).map_err(|_| {
+                                StorageError {
+                                    message: alloc::format!(
+                                        "schema: next_property_key_id counter {counter_val} exceeds u32::MAX"
+                                    ),
+                                    #[cfg(feature = "std")]
+                                    source: None,
+                                }
+                            })?;
+                    }
                     _ => {}
                 }
             }
