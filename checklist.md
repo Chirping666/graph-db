@@ -630,7 +630,7 @@ This is documented as a known limitation.
   cargo test -p phonograph_db -- graph_view::tests::nodes_by_property_nan
   ```
 
-- [ ] **4.4 — Verify no remaining `PartialEq` property lookups in engine code.**
+- [x] **4.4 — Verify no remaining `PartialEq` property lookups in engine code.**
   ```bash
   grep -rn 'properties.get.*== Some' crates/phonograph_db/src/db/
   ```
