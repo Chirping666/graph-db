@@ -929,8 +929,9 @@ impl<'db, B: crate::backend::StorageBackend> WriteTransaction<'db, B> {
         let affected_types = changeset.affected_types();
 
         // Build the overlay graph view for validators
+        let reader = self.base_reader();
         let graph_view = OverlayGraphView::build(
-            &self.base_reader(),
+            &reader,
             &self.buffer,
             &self.schema_cache,
         );

@@ -223,7 +223,7 @@ Before writing any code, read these files:
   **Verify:** `cargo check -p phonograph_db` — may still have errors from call sites in
   `write_txn.rs`.
 
-- [ ] **1.4 — Update all `OverlayGraphView::build` call sites in `write_txn.rs`.**
+- [x] **1.4 — Update all `OverlayGraphView::build` call sites in `write_txn.rs`.**
   Search `write_txn.rs` for `OverlayGraphView::build`. Each call currently passes
   `&self.base_reader()`, `&self.buffer`, and `&self.schema_cache`. The signature change
   is source-compatible (the third argument is already `&self.schema_cache`), but the
