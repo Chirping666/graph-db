@@ -272,6 +272,42 @@ impl Value {
         }
     }
 
+    /// Deterministic equality comparison that handles `f64` correctly.
+    ///
+    /// Unlike [`PartialEq`], this method uses [`f64::total_cmp`] semantics for
+    /// [`Value::F64`] variants, meaning:
+    /// - `NaN == NaN` → `true`
+    /// - `0.0 != -0.0`
+    ///
+    /// For all other variants, this delegates to [`PartialEq`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use phonograph::Value;
+    ///
+    /// // NaN equals NaN under total_eq
+    /// assert!(Value::F64(f64::NAN).total_eq(&Value::F64(f64::NAN)));
+    ///
+    /// // 0.0 and -0.0 are distinct under total_eq
+    /// assert!(!Value::F64(0.0).total_eq(&Value::F64(-0.0)));
+    ///
+    /// // Non-float variants delegate to PartialEq
+    /// assert!(Value::I64(42).total_eq(&Value::I64(42)));
+    /// ```
+    pub fn total_eq(&self, other: &Value) -> bool {
+        match (self, other) {
+            (Value::F64(a), Value::F64(b)) => a.total_cmp(b).is_eq(),
+            (Value::List(a), Value::List(b)) => {
+                a.len() == b.len() && a.iter().zip(b.iter()).all(|(x, y)| x.total_eq(y))
+            }
+            (Value::LangString { value: v1, lang: l1 }, Value::LangString { value: v2, lang: l2 }) => {
+                v1 == v2 && l1 == l2
+            }
+            _ => self == other,
+        }
+    }
+
     /// Returns `true` if this value matches the given type descriptor.
     ///
     /// # Matching rules
@@ -357,6 +393,35 @@ pub enum ValueTypeDescriptor {
 /// Uses `BTreeMap` rather than `HashMap` to remain `no_std`-compatible
 /// and to provide deterministic iteration order.
 pub type PropertyMap = BTreeMap<PropertyKeyId, Value>;
+
+/// Deterministic equality comparison for two [`PropertyMap`]s.
+///
+/// Uses [`Value::total_eq`] for each value, so `f64` comparisons follow
+/// [`f64::total_cmp`] semantics (NaN == NaN, 0.0 ≠ −0.0).
+///
+/// # Examples
+///
+/// ```
+/// use phonograph::{PropertyKeyId, Value, property_map_total_eq};
+/// use std::collections::BTreeMap;
+///
+/// let mut a = BTreeMap::new();
+/// a.insert(PropertyKeyId(1), Value::F64(f64::NAN));
+///
+/// let mut b = BTreeMap::new();
+/// b.insert(PropertyKeyId(1), Value::F64(f64::NAN));
+///
+/// // PartialEq would return false because NaN != NaN
+/// assert_ne!(a, b);
+/// // total_eq returns true
+/// assert!(property_map_total_eq(&a, &b));
+/// ```
+pub fn property_map_total_eq(a: &PropertyMap, b: &PropertyMap) -> bool {
+    a.len() == b.len()
+        && a.iter()
+            .zip(b.iter())
+            .all(|((k1, v1), (k2, v2))| k1 == k2 && v1.total_eq(v2))
+}
 
 /// A node in the graph.
 ///

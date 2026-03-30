@@ -406,7 +406,7 @@ Before writing any code, read these files:
 
 ### ▸ Phase 5 Gate
 
-- [ ] **Phase 5 gate:**
+- [x] **Phase 5 gate:**
   ```bash
   cargo test --workspace
   cargo clippy --workspace --all-targets -- -D warnings
@@ -416,7 +416,7 @@ Before writing any code, read these files:
 
 ## Phase 6: API Additions
 
-- [ ] **6.1 — Add `Value::total_eq(&self, &other) -> bool`.**
+- [x] **6.1 — Add `Value::total_eq(&self, &other) -> bool`.**
   In `crates/phonograph/src/types/mod.rs`. Uses `f64::total_cmp` for floats,
   delegates to `PartialEq` for other variants. Also add `property_map_total_eq()`.
 

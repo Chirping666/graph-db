@@ -26,7 +26,7 @@ pub mod error;
 // Convenience re-exports.
 pub use types::{
     Edge, EdgeId, Node, NodeId, PropertyDeclaration, PropertyKeyId, PropertyMap, TypeDefinition,
-    TypeId, TypeKind, Value, ValueTypeDescriptor,
+    TypeId, TypeKind, Value, ValueTypeDescriptor, property_map_total_eq,
 };
 pub use schema::{GraphView, PropertyKeyRegistryView, TypeRegistryView};
 pub use constraint::{
