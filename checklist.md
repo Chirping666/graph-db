@@ -784,7 +784,7 @@ This is documented as a known limitation.
 
 ## Phase 7: Documentation & Metadata Updates
 
-- [ ] **7.1 — Update `CHANGELOG.md`.**
+- [x] **7.1 — Update `CHANGELOG.md`.**
   Add an entry under a new section:
   ```markdown
   ### Changed

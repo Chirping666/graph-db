@@ -15,6 +15,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `MemoryDatabase` types.
 - Re-exports removed — import types from the crate that defines them.
 - `LockableBackend` trait is now unconditional (not `std`-gated).
+- `OverlayGraphView::build()` now uses static dispatch (`&impl SnapshotReader`)
+  instead of dynamic dispatch (`&dyn SnapshotReader`).
+- `OverlayGraphView` now holds a schema cache reference and correctly resolves
+  subtypes in `nodes_by_type` and `edges_by_type` when `include_subtypes` is true.
+- `nodes_by_property` in both `OverlayGraphView` and `WriteTransaction` now uses
+  `Value::total_eq()` instead of `PartialEq`, fixing NaN property lookups.
+- `OverlayGraphView::build()` accepts an optional `affected_types` parameter for
+  changeset-scoped preloading, avoiding full database scans on commit.
+- Inference result cache restructured to avoid String allocation on lookups.
 
 ### Added
 
@@ -29,6 +38,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Priority inversion under `std` due to unconditional `spin` mutex usage.
 - Potential infinite loop on corrupt overflow page chains.
+- `OverlayGraphView::nodes_by_type` and `edges_by_type` ignored the
+  `include_subtypes` parameter, returning only exact type matches. Constraint
+  validators and inference rules now see correct subtype-inclusive results.
+- `nodes_by_property` could not match properties with NaN values due to IEEE 754
+  `PartialEq` semantics. All engine property lookups now use `total_eq`.
+- Schema counter deserialization silently truncated `u64` values to `u32`. Now
+  returns an error if a persisted counter exceeds `u32::MAX`.
 
 ## [0.1.0] - 2026-03-26
 
