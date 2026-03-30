@@ -773,7 +773,7 @@ This is documented as a known limitation.
 
 ### ▸ Phase 6 Gate
 
-- [ ] **Phase 6 gate:**
+- [x] **Phase 6 gate:**
   ```bash
   cargo test --workspace
   cargo clippy --workspace --all-targets -- -D warnings
