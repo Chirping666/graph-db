@@ -388,7 +388,7 @@ the affected set, the result may be incomplete. In practice, validators inspect 
 changeset's neighborhood, and the `applies_to_types()` hint already scopes dispatching.
 This is documented as a known limitation.
 
-- [ ] **3.1 — Expand the `SnapshotReader` trait with targeted query methods.**
+- [x] **3.1 — Expand the `SnapshotReader` trait with targeted query methods.**
   In `crates/phonograph_db/src/db/graph_view.rs`, add to the `SnapshotReader` trait:
 
   ```rust

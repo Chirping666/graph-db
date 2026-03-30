@@ -31,6 +31,24 @@ pub(crate) trait SnapshotReader {
     fn all_nodes(&self) -> Vec<Node>;
     /// Returns all edges.
     fn all_edges(&self) -> Vec<Edge>;
+
+    /// Returns all nodes whose type labels overlap with any of the given type IDs.
+    /// Used for changeset-scoped preloading.
+    fn nodes_by_type_ids(&self, type_ids: &[TypeId]) -> Vec<Node> {
+        self.all_nodes()
+            .into_iter()
+            .filter(|n| n.type_labels.iter().any(|t| type_ids.contains(t)))
+            .collect()
+    }
+
+    /// Returns all edges whose type labels overlap with any of the given type IDs.
+    /// Used for changeset-scoped preloading.
+    fn edges_by_type_ids(&self, type_ids: &[TypeId]) -> Vec<Edge> {
+        self.all_edges()
+            .into_iter()
+            .filter(|e| e.type_labels.iter().any(|t| type_ids.contains(t)))
+            .collect()
+    }
 }
 
 /// A [`GraphView`] implementation that overlays [`WriteBuffer`] changes
