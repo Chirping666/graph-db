@@ -1725,6 +1725,52 @@ impl<'a, 'db, B: crate::backend::StorageBackend> SnapshotReader for BaseSnapshot
         }
         edges
     }
+
+    fn nodes_by_type_ids(&self, type_ids: &[TypeId]) -> Vec<Node> {
+        let rtx = self.txn.as_base_read_txn();
+        let mut seen = alloc::collections::BTreeSet::new();
+        let mut result = Vec::new();
+        for tid in type_ids {
+            let start = serialization::encode_type_index_key(0x00, *tid, 0);
+            let end = serialization::encode_type_index_key(0x00, *tid, u64::MAX);
+            if let Ok(entries) = rtx.storage_range_scan(
+                self.txn.snapshot.roots.type_index, &start, Some(&end),
+            ) {
+                for (key, _) in &entries {
+                    let (_, _, entity_id) = serialization::decode_type_index_key(key);
+                    if seen.insert(entity_id)
+                        && let Ok(Some(node)) = self.txn.read_base_node(NodeId(entity_id))
+                    {
+                        result.push(node);
+                    }
+                }
+            }
+        }
+        result
+    }
+
+    fn edges_by_type_ids(&self, type_ids: &[TypeId]) -> Vec<Edge> {
+        let rtx = self.txn.as_base_read_txn();
+        let mut seen = alloc::collections::BTreeSet::new();
+        let mut result = Vec::new();
+        for tid in type_ids {
+            let start = serialization::encode_type_index_key(0x01, *tid, 0);
+            let end = serialization::encode_type_index_key(0x01, *tid, u64::MAX);
+            if let Ok(entries) = rtx.storage_range_scan(
+                self.txn.snapshot.roots.type_index, &start, Some(&end),
+            ) {
+                for (key, _) in &entries {
+                    let (_, _, entity_id) = serialization::decode_type_index_key(key);
+                    if seen.insert(entity_id)
+                        && let Ok(Some(edge)) = self.txn.read_base_edge(EdgeId(entity_id))
+                    {
+                        result.push(edge);
+                    }
+                }
+            }
+        }
+        result
+    }
 }
 
 /// Applies a CowResult to a root pointer and tracks freed pages.

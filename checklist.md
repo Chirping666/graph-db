@@ -420,7 +420,7 @@ This is documented as a known limitation.
 
   **Verify:** `cargo check -p phonograph_db` — clean compile.
 
-- [ ] **3.2 — Override `nodes_by_type_ids` / `edges_by_type_ids` on `BaseSnapshotReader`.**
+- [x] **3.2 — Override `nodes_by_type_ids` / `edges_by_type_ids` on `BaseSnapshotReader`.**
   In `write_txn.rs`, `BaseSnapshotReader` implements `SnapshotReader`. Override the new
   methods to use the storage engine's type index scan instead of loading everything:
 
