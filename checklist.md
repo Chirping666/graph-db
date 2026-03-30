@@ -619,7 +619,7 @@ This is documented as a known limitation.
 
   **Verify:** `cargo check -p phonograph_db` — clean compile.
 
-- [ ] **4.3 — Add unit test for NaN property lookup in `OverlayGraphView`.**
+- [x] **4.3 — Add unit test for NaN property lookup in `OverlayGraphView`.**
   In `graph_view.rs` tests, add a test that:
   1. Inserts a node with a property set to `Value::F64(f64::NAN)`.
   2. Calls `view.nodes_by_property(key, &Value::F64(f64::NAN))`.

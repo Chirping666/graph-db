@@ -600,4 +600,22 @@ mod tests {
         assert!(view.get_node(NodeId(2)).is_some(), "adjacency neighbor should be loaded");
         assert!(view.get_edge(EdgeId(1)).is_some(), "connecting edge should be loaded");
     }
+
+    #[test]
+    fn nodes_by_property_nan() {
+        use phonograph::types::{PropertyKeyId, Value};
+
+        let snap = MockSnapshot::new();
+        let mut buf = WriteBuffer::new();
+        let mut node = make_node(1, 1);
+        node.properties
+            .insert(PropertyKeyId(1), Value::F64(f64::NAN));
+        buf.insert_node(node);
+
+        let schema = SchemaCache::new();
+        let view = OverlayGraphView::build(&snap, &buf, &schema, None);
+
+        let result = view.nodes_by_property(PropertyKeyId(1), &Value::F64(f64::NAN));
+        assert_eq!(result.len(), 1, "NaN property should be found via total_eq");
+    }
 }
