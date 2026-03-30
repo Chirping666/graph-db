@@ -240,7 +240,7 @@ Before writing any code, read these files:
 
   **Verify:** `cargo check -p phonograph_db` — clean compile.
 
-- [ ] **1.5 — Update the test `MockSnapshot` call sites in `graph_view.rs` tests.**
+- [x] **1.5 — Update the test `MockSnapshot` call sites in `graph_view.rs` tests.**
   The test code constructs `OverlayGraphView::build(&snap, &buf, &schema)`. This should
   continue to work since `MockSnapshot` implements `SnapshotReader`. Just verify the
   tests compile and pass.
