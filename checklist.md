@@ -502,7 +502,7 @@ Before writing any code, read these files:
 
   **Verify:** README.md is accurate.
 
-- [ ] **8.2 — Update `CHANGELOG.md`.**
+- [x] **8.2 — Update `CHANGELOG.md`.**
   Add:
   ```markdown
   ### Changed

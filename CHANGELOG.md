@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- Sync primitives use `std::sync` when `std` feature is active (fixes priority
+  inversion). `spin` is used only on `no_std`.
+- `AnyBackend` removed — convenience functions return concrete `FileDatabase` and
+  `MemoryDatabase` types.
+- Re-exports removed — import types from the crate that defines them.
+- `LockableBackend` trait is now unconditional (not `std`-gated).
+
+### Added
+
+- `Value::total_eq()` for deterministic float comparison.
+- `property_map_total_eq()` helper for comparing property maps.
+- `Database::try_write_txn(timeout)` for non-blocking write lock acquisition.
+- `MAX_OVERFLOW_CHAIN_LENGTH` and enforcement in overflow page reading.
+- Fuzz targets for page parsing and superblock validation.
+- `compile_error!` on unsupported platforms in `phonograph_std`.
+
+### Fixed
+
+- Priority inversion under `std` due to unconditional `spin` mutex usage.
+- Potential infinite loop on corrupt overflow page chains.
+
 ## [0.1.0] - 2026-03-26
 
 ### Added
