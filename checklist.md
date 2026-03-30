@@ -757,7 +757,7 @@ This is documented as a known limitation.
 
   **Verify:** `cargo check -p phonograph_db` — clean compile.
 
-- [ ] **6.2 — Verify all existing inference cache tests pass.**
+- [x] **6.2 — Verify all existing inference cache tests pass.**
   ```bash
   cargo test -p phonograph_db -- inference_engine::tests::cache
   ```
