@@ -575,7 +575,7 @@ impl<'db, B: crate::backend::StorageBackend> ReadTransaction<'db, B> {
         // Build GraphView from snapshot (no WriteBuffer overlay for reads).
         let reader = ReadTxnSnapshotReader { txn: self };
         let empty_buf = WriteBuffer::new();
-        let view = OverlayGraphView::build(&reader, &empty_buf, &self.schema_cache);
+        let view = OverlayGraphView::build(&reader, &empty_buf, &self.schema_cache, None);
 
         // Invoke the rule.
         let rule = engine.get_rule(rule_name).unwrap();

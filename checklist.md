@@ -500,7 +500,7 @@ This is documented as a known limitation.
 
   **Verify:** `cargo check -p phonograph_db` — expect errors at call sites.
 
-- [ ] **3.4 — Update call sites in `write_txn.rs`.**
+- [x] **3.4 — Update call sites in `write_txn.rs`.**
   There are three call sites for `OverlayGraphView::build()`:
 
   1. `run_validators()` — pass `Some(&affected_types)` where `affected_types` comes

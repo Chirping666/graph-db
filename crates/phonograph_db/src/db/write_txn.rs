@@ -934,6 +934,7 @@ impl<'db, B: crate::backend::StorageBackend> WriteTransaction<'db, B> {
             &reader,
             &self.buffer,
             &self.schema_cache,
+            Some(&affected_types),
         );
 
         let validators = self.inner.constraint_registry.read();
@@ -1189,7 +1190,7 @@ impl<'db, B: crate::backend::StorageBackend> WriteTransaction<'db, B> {
                     // Cache miss — invoke the rule.
                     let reader = BaseSnapshotReader { txn: self };
                     let view =
-                        OverlayGraphView::build(&reader, &self.buffer, &self.schema_cache);
+                        OverlayGraphView::build(&reader, &self.buffer, &self.schema_cache, None);
                     let rule = engine.get_rule(rule_name).unwrap();
                     let result = rule.infer(&view, &self.schema_cache, &self.schema_cache);
                     engine.cache_insert(rule_name.to_string(), generation, result.clone());
@@ -1199,7 +1200,7 @@ impl<'db, B: crate::backend::StorageBackend> WriteTransaction<'db, B> {
                 // Dirty — always invoke the rule, never cache.
                 let reader = BaseSnapshotReader { txn: self };
                 let view =
-                    OverlayGraphView::build(&reader, &self.buffer, &self.schema_cache);
+                    OverlayGraphView::build(&reader, &self.buffer, &self.schema_cache, None);
                 let rule = engine.get_rule(rule_name).unwrap();
                 rule.infer(&view, &self.schema_cache, &self.schema_cache)
             }
