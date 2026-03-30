@@ -536,7 +536,7 @@ Before writing any code, read these files:
 
 ## Phase 9: Final Verification
 
-- [ ] **9.1 — Full workspace build, test, lint, docs.**
+- [x] **9.1 — Full workspace build, test, lint, docs.**
   ```bash
   cargo build --workspace
   cargo test --workspace
