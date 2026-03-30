@@ -721,7 +721,7 @@ This is documented as a known limitation.
 
 > **Implements:** CLAUDE.md principle A7 (efficiency)
 
-- [ ] **6.1 — Restructure `InferenceCache` to avoid allocation on lookup.**
+- [x] **6.1 — Restructure `InferenceCache` to avoid allocation on lookup.**
   In `crates/phonograph_db/src/db/inference_engine.rs`, change the cache from:
   ```rust
   entries: BTreeMap<(String, u64), CacheEntry>,

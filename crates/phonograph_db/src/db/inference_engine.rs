@@ -30,10 +30,13 @@ struct CacheEntry {
 /// Keyed by `(rule_name, data_generation)` where `data_generation` is the
 /// snapshot's transaction ID. Bounded by `max_entries`. Not persisted to disk.
 /// When the cache is full, the least recently used entry is evicted.
+///
+/// Uses a two-level map (`rule_name` → `generation` → entry) so that
+/// lookups via `get()` can borrow the rule name (`&str`) without allocating.
 pub(crate) struct InferenceCache {
-    /// Cache entries: `(rule_name, generation)` → cached result + access counter.
-    entries: BTreeMap<(String, u64), CacheEntry>,
-    /// Maximum number of entries. 0 = caching disabled.
+    /// Two-level cache: `rule_name` → (`generation` → cached result + access counter).
+    entries: BTreeMap<String, BTreeMap<u64, CacheEntry>>,
+    /// Maximum number of entries (total across all rule names). 0 = caching disabled.
     max_entries: usize,
     /// Monotonically increasing counter for LRU ordering.
     access_counter: u64,
@@ -53,18 +56,20 @@ impl InferenceCache {
 
     /// Looks up a cached result. Returns `Some(result.clone())` on hit,
     /// `None` on miss. Updates the LRU access counter on hit.
+    ///
+    /// This method borrows `rule_name` without allocating a `String`.
     pub(crate) fn get(&mut self, rule_name: &str, generation: u64) -> Option<InferenceResult> {
         if self.max_entries == 0 {
             return None;
         }
-        let key = (rule_name.to_string(), generation);
-        if let Some(entry) = self.entries.get_mut(&key) {
+        if let Some(by_gen) = self.entries.get_mut(rule_name)
+            && let Some(entry) = by_gen.get_mut(&generation)
+        {
             self.access_counter += 1;
             entry.last_accessed = self.access_counter;
-            Some(entry.result.clone())
-        } else {
-            None
+            return Some(entry.result.clone());
         }
+        None
     }
 
     /// Inserts a result into the cache. If full, evicts the LRU entry.
@@ -79,29 +84,26 @@ impl InferenceCache {
             return;
         }
         self.access_counter += 1;
-        let key = (rule_name, generation);
-        // If the key already exists, replace it.
-        if self.entries.contains_key(&key) {
-            self.entries.insert(
-                key,
-                CacheEntry {
-                    result,
-                    last_accessed: self.access_counter,
-                },
-            );
+        let entry = CacheEntry {
+            result,
+            last_accessed: self.access_counter,
+        };
+        // If the key already exists, replace it (no net change in count).
+        if let Some(by_gen) = self.entries.get_mut(&rule_name)
+            && let alloc::collections::btree_map::Entry::Occupied(mut e) =
+                by_gen.entry(generation)
+        {
+            e.insert(entry);
             return;
         }
-        // Evict LRU if at capacity.
-        if self.entries.len() >= self.max_entries {
+        // Evict LRU if at capacity (count total entries across all rule names).
+        if self.total_entries() >= self.max_entries {
             self.evict_lru();
         }
-        self.entries.insert(
-            key,
-            CacheEntry {
-                result,
-                last_accessed: self.access_counter,
-            },
-        );
+        self.entries
+            .entry(rule_name)
+            .or_default()
+            .insert(generation, entry);
     }
 
     /// Clears all entries.
@@ -110,15 +112,30 @@ impl InferenceCache {
         self.entries.clear();
     }
 
+    /// Returns the total number of cached entries across all rule names.
+    fn total_entries(&self) -> usize {
+        self.entries.values().map(|m| m.len()).sum()
+    }
+
     /// Evicts the entry with the smallest `last_accessed` counter.
     fn evict_lru(&mut self) {
-        if let Some(lru_key) = self
-            .entries
-            .iter()
-            .min_by_key(|(_, v)| v.last_accessed)
-            .map(|(k, _)| k.clone())
+        let mut lru_key: Option<(String, u64)> = None;
+        let mut lru_access = u64::MAX;
+        for (rule, by_gen) in &self.entries {
+            for (generation, entry) in by_gen {
+                if entry.last_accessed < lru_access {
+                    lru_access = entry.last_accessed;
+                    lru_key = Some((rule.clone(), *generation));
+                }
+            }
+        }
+        if let Some((rule, generation)) = lru_key
+            && let Some(by_gen) = self.entries.get_mut(&rule)
         {
-            self.entries.remove(&lru_key);
+            by_gen.remove(&generation);
+            if by_gen.is_empty() {
+                self.entries.remove(&rule);
+            }
         }
     }
 }
