@@ -839,6 +839,97 @@ mod tests {
     // if someone adds `Eq` to Value's derives, tests that rely on `PartialEq`
     // will still pass, but the design intent is that Eq is NOT derived.
 
+    // === total_eq tests ===
+
+    #[test]
+    fn total_eq_nan_equals_nan() {
+        assert!(Value::F64(f64::NAN).total_eq(&Value::F64(f64::NAN)));
+    }
+
+    #[test]
+    fn total_eq_zero_not_equal_neg_zero() {
+        assert!(!Value::F64(0.0).total_eq(&Value::F64(-0.0)));
+    }
+
+    #[test]
+    fn total_eq_float_not_equal_integer() {
+        assert!(!Value::F64(1.0).total_eq(&Value::I64(1)));
+    }
+
+    #[test]
+    fn total_eq_non_float_delegates_to_partial_eq() {
+        assert!(Value::Null.total_eq(&Value::Null));
+        assert!(Value::Bool(true).total_eq(&Value::Bool(true)));
+        assert!(!Value::Bool(true).total_eq(&Value::Bool(false)));
+        assert!(Value::I64(42).total_eq(&Value::I64(42)));
+        assert!(!Value::I64(1).total_eq(&Value::I64(2)));
+        assert!(Value::U64(10).total_eq(&Value::U64(10)));
+        assert!(Value::String("hi".into()).total_eq(&Value::String("hi".into())));
+        assert!(!Value::String("a".into()).total_eq(&Value::String("b".into())));
+        assert!(Value::Bytes(vec![1, 2]).total_eq(&Value::Bytes(vec![1, 2])));
+        assert!(Value::NodeRef(NodeId(5)).total_eq(&Value::NodeRef(NodeId(5))));
+    }
+
+    #[test]
+    fn total_eq_lang_string() {
+        let a = Value::LangString { value: "hello".into(), lang: "en".into() };
+        let b = Value::LangString { value: "hello".into(), lang: "en".into() };
+        let c = Value::LangString { value: "hello".into(), lang: "fr".into() };
+        assert!(a.total_eq(&b));
+        assert!(!a.total_eq(&c));
+    }
+
+    #[test]
+    fn total_eq_list_with_nan() {
+        let a = Value::List(vec![Value::F64(f64::NAN), Value::I64(1)]);
+        let b = Value::List(vec![Value::F64(f64::NAN), Value::I64(1)]);
+        assert!(a.total_eq(&b));
+    }
+
+    #[test]
+    fn total_eq_list_length_mismatch() {
+        let a = Value::List(vec![Value::I64(1)]);
+        let b = Value::List(vec![Value::I64(1), Value::I64(2)]);
+        assert!(!a.total_eq(&b));
+    }
+
+    #[test]
+    fn total_eq_property_map() {
+        let mut a = PropertyMap::new();
+        a.insert(PropertyKeyId(1), Value::F64(f64::NAN));
+        a.insert(PropertyKeyId(2), Value::String("x".into()));
+
+        let mut b = PropertyMap::new();
+        b.insert(PropertyKeyId(1), Value::F64(f64::NAN));
+        b.insert(PropertyKeyId(2), Value::String("x".into()));
+
+        // PartialEq fails on NaN
+        assert_ne!(a, b);
+        // total_eq succeeds
+        assert!(property_map_total_eq(&a, &b));
+    }
+
+    #[test]
+    fn total_eq_property_map_different_keys() {
+        let mut a = PropertyMap::new();
+        a.insert(PropertyKeyId(1), Value::I64(1));
+
+        let mut b = PropertyMap::new();
+        b.insert(PropertyKeyId(2), Value::I64(1));
+
+        assert!(!property_map_total_eq(&a, &b));
+    }
+
+    #[test]
+    fn total_eq_property_map_different_lengths() {
+        let mut a = PropertyMap::new();
+        a.insert(PropertyKeyId(1), Value::I64(1));
+
+        let b = PropertyMap::new();
+
+        assert!(!property_map_total_eq(&a, &b));
+    }
+
     // === ValueTypeDescriptor Eq test ===
 
     #[test]

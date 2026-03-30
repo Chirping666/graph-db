@@ -422,7 +422,7 @@ Before writing any code, read these files:
 
   **Verify:** `cargo check -p phonograph` and `cargo doc -p phonograph --no-deps` pass.
 
-- [ ] **6.2 — Add unit tests for `Value::total_eq`.**
+- [x] **6.2 — Add unit tests for `Value::total_eq`.**
   Test: `NaN == NaN` → true, `0.0 != -0.0`, `Float != Integer` (different variants),
   property map comparison.
 
