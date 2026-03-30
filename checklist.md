@@ -451,7 +451,7 @@ This is documented as a known limitation.
 
   **Verify:** `cargo check -p phonograph_db` — clean compile.
 
-- [ ] **3.3 — Add `affected_types` parameter to `OverlayGraphView::build()`.**
+- [x] **3.3 — Add `affected_types` parameter to `OverlayGraphView::build()`.**
   Change the `build()` signature:
 
   Before:

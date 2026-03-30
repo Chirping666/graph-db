@@ -75,20 +75,62 @@ impl<'s> OverlayGraphView<'s> {
     /// Constructs an overlay view by merging the base snapshot with
     /// the write buffer's pending changes.
     ///
-    /// This loads all nodes and edges from the base snapshot, applies
-    /// the WriteBuffer overlay (inserts, updates, deletes), and builds
+    /// This loads nodes and edges from the base snapshot, applies the
+    /// WriteBuffer overlay (inserts, updates, deletes), and builds
     /// adjacency indexes. The result is a self-contained snapshot of the
     /// "as if committed" state.
+    ///
+    /// When `affected_types` is `Some`, only base entities whose type labels
+    /// overlap with the given type IDs are loaded, plus adjacency neighbors
+    /// of changed nodes. When `None`, all base entities are loaded.
     pub fn build(
         base: &impl SnapshotReader,
         buffer: &WriteBuffer,
         schema: &'s SchemaCache,
+        affected_types: Option<&[TypeId]>,
     ) -> Self {
-        // Load all nodes from base.
+        // Load nodes from base (scoped or full).
         let mut nodes: BTreeMap<NodeId, Node> = BTreeMap::new();
-        for node in base.all_nodes() {
+        let base_nodes = match affected_types {
+            Some(type_ids) => base.nodes_by_type_ids(type_ids),
+            None => base.all_nodes(),
+        };
+        for node in base_nodes {
             nodes.insert(node.id, node);
         }
+
+        // Load edges from base (scoped or full).
+        let mut edges: BTreeMap<EdgeId, Edge> = BTreeMap::new();
+        let base_edges = match affected_types {
+            Some(type_ids) => base.edges_by_type_ids(type_ids),
+            None => base.all_edges(),
+        };
+        for edge in base_edges {
+            edges.insert(edge.id, edge);
+        }
+
+        // When scoped, also load adjacency neighbors of changed nodes so
+        // validators can traverse from changed entities.
+        if affected_types.is_some() {
+            for node_id in buffer.inserted_nodes().keys()
+                .chain(buffer.updated_nodes().keys())
+                .chain(buffer.deleted_nodes().keys())
+            {
+                for edge in base.outgoing_edges(*node_id, None) {
+                    if let Some(target) = base.get_node(edge.target) {
+                        nodes.entry(target.id).or_insert(target);
+                    }
+                    edges.entry(edge.id).or_insert(edge);
+                }
+                for edge in base.incoming_edges(*node_id, None) {
+                    if let Some(source) = base.get_node(edge.source) {
+                        nodes.entry(source.id).or_insert(source);
+                    }
+                    edges.entry(edge.id).or_insert(edge);
+                }
+            }
+        }
+
         // Apply buffer overlay: deletes, updates, inserts.
         for &id in buffer.deleted_nodes().keys() {
             nodes.remove(&id);
@@ -100,12 +142,7 @@ impl<'s> OverlayGraphView<'s> {
             nodes.insert(*id, node.clone());
         }
 
-        // Load all edges from base.
-        let mut edges: BTreeMap<EdgeId, Edge> = BTreeMap::new();
-        for edge in base.all_edges() {
-            edges.insert(edge.id, edge);
-        }
-        // Apply buffer overlay.
+        // Apply edge buffer overlay.
         for &id in buffer.deleted_edge_ids().keys() {
             edges.remove(&id);
         }
