@@ -39,7 +39,7 @@ pub(crate) trait SnapshotReader {
 /// Constructed at validation/commit time and owns all data so that
 /// `GraphView` trait methods can return borrowed references.
 #[allow(dead_code)]
-pub(crate) struct OverlayGraphView {
+pub(crate) struct OverlayGraphView<'s> {
     /// All nodes visible in the overlay (base + inserts - deletes + updates).
     nodes: BTreeMap<NodeId, Node>,
     /// All edges visible in the overlay.
@@ -48,10 +48,12 @@ pub(crate) struct OverlayGraphView {
     outgoing_index: BTreeMap<NodeId, Vec<EdgeId>>,
     /// Incoming edge index: NodeId → list of EdgeIds.
     incoming_index: BTreeMap<NodeId, Vec<EdgeId>>,
+    /// Schema cache for subtype resolution in `nodes_by_type`/`edges_by_type`.
+    schema: &'s SchemaCache,
 }
 
 #[allow(dead_code)]
-impl OverlayGraphView {
+impl<'s> OverlayGraphView<'s> {
     /// Constructs an overlay view by merging the base snapshot with
     /// the write buffer's pending changes.
     ///
@@ -62,7 +64,7 @@ impl OverlayGraphView {
     pub fn build(
         base: &dyn SnapshotReader,
         buffer: &WriteBuffer,
-        _schema: &SchemaCache,
+        schema: &'s SchemaCache,
     ) -> Self {
         // Load all nodes from base.
         let mut nodes: BTreeMap<NodeId, Node> = BTreeMap::new();
@@ -115,11 +117,12 @@ impl OverlayGraphView {
             edges,
             outgoing_index,
             incoming_index,
+            schema,
         }
     }
 }
 
-impl GraphView for OverlayGraphView {
+impl GraphView for OverlayGraphView<'_> {
     fn get_node(&self, id: NodeId) -> Option<&Node> {
         self.nodes.get(&id)
     }

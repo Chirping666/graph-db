@@ -153,7 +153,7 @@ Before writing any code, read these files:
 
 > **Implements:** CLAUDE.md principles A7, A9
 
-- [ ] **1.1 — Add lifetime and schema reference to `OverlayGraphView`.**
+- [x] **1.1 — Add lifetime and schema reference to `OverlayGraphView`.**
   In `crates/phonograph_db/src/db/graph_view.rs`, change the struct definition:
 
   Before:
