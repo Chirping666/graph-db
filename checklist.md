@@ -480,7 +480,7 @@ Before writing any code, read these files:
 
   **Verify:** All four files exist.
 
-- [ ] **7.3 — Verify fuzz targets compile.**
+- [x] **7.3 — Verify fuzz targets compile.**
   ```bash
   cd fuzz && cargo check
   ```
@@ -490,7 +490,7 @@ Before writing any code, read these files:
 
 ### ▸ Phase 7 Gate
 
-- [ ] **Phase 7 gate:** `cargo test --workspace` still passes.
+- [x] **Phase 7 gate:** `cargo test --workspace` still passes.
 
 ---
 
