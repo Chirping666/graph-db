@@ -545,7 +545,7 @@ Before writing any code, read these files:
   ```
   All pass with zero warnings.
 
-- [ ] **9.2 — `no_std` verification.**
+- [x] **9.2 — `no_std` verification.**
   ```bash
   cargo check -p phonograph --no-default-features
   cargo check -p phonograph_db --no-default-features
