@@ -268,7 +268,7 @@ Before writing any code, read these files:
 
 > **Implements:** CLAUDE.md principle A9
 
-- [ ] **2.1 — Implement subtype resolution in `nodes_by_type`.**
+- [x] **2.1 — Implement subtype resolution in `nodes_by_type`.**
   In `graph_view.rs`, replace the `nodes_by_type` method body:
 
   Before (both branches are identical, `include_subtypes` is ignored):

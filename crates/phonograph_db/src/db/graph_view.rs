@@ -156,24 +156,16 @@ impl GraphView for OverlayGraphView<'_> {
     }
 
     fn nodes_by_type(&self, type_id: TypeId, include_subtypes: bool) -> Vec<&Node> {
-        // For the overlay view, we do a simple filter.
-        // In production, include_subtypes would check the schema cache.
-        // Here we only match exact type_id since we don't have schema
-        // access in this trait method. The caller (validate) passes
-        // the schema separately if needed.
+        use phonograph::schema::TypeRegistryView;
+
+        let mut type_ids = alloc::vec![type_id];
         if include_subtypes {
-            // Without schema access, we can only match the exact type.
-            // The full subtype resolution happens at the caller level.
-            self.nodes
-                .values()
-                .filter(|n| n.type_labels.contains(&type_id))
-                .collect()
-        } else {
-            self.nodes
-                .values()
-                .filter(|n| n.type_labels.contains(&type_id))
-                .collect()
+            type_ids.extend(self.schema.all_subtypes(type_id));
         }
+        self.nodes
+            .values()
+            .filter(|n| type_ids.iter().any(|t| n.type_labels.contains(t)))
+            .collect()
     }
 
     fn edges_by_type(&self, type_id: TypeId, include_subtypes: bool) -> Vec<&Edge> {
