@@ -530,7 +530,7 @@ Before writing any code, read these files:
 
 ### ▸ Phase 8 Gate
 
-- [ ] **Phase 8 gate:** `cargo doc --workspace --no-deps` — zero warnings.
+- [x] **Phase 8 gate:** `cargo doc --workspace --no-deps` — zero warnings.
 
 ---
 
