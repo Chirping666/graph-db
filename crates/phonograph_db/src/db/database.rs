@@ -361,6 +361,49 @@ impl<B: StorageBackend> Database<B> {
         ))
     }
 
+    /// Begins a read-write transaction with a timeout.
+    ///
+    /// Attempts to acquire the write lock within `timeout`. If the lock
+    /// cannot be acquired before the deadline, returns
+    /// [`TransactionError::WriteLockTimeout`](crate::error::TransactionError::WriteLockTimeout).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Transaction`] with [`TransactionError::WriteLockTimeout`](crate::error::TransactionError::WriteLockTimeout)
+    /// if the timeout elapses before the write lock is acquired.
+    #[cfg(feature = "std")]
+    pub fn try_write_txn(
+        &self,
+        timeout: std::time::Duration,
+    ) -> Result<WriteTransaction<'_, B>, Error> {
+        use crate::error::TransactionError;
+
+        let deadline = std::time::Instant::now() + timeout;
+        let guard = loop {
+            if let Some(g) = self.inner.write_mutex.try_lock() {
+                break g;
+            }
+            if std::time::Instant::now() >= deadline {
+                return Err(TransactionError::WriteLockTimeout.into());
+            }
+            std::thread::sleep(std::time::Duration::from_micros(100));
+        };
+        let snapshot = {
+            let current = self.inner.current_snapshot.read();
+            Arc::clone(&current)
+        };
+        let schema_cache = {
+            let cache = self.inner.schema_cache.read();
+            cache.clone()
+        };
+        Ok(WriteTransaction::new(
+            &self.inner,
+            snapshot,
+            schema_cache,
+            guard,
+        ))
+    }
+
     /// Registers a constraint validator.
     ///
     /// If a validator with the same name is already registered, it is replaced.

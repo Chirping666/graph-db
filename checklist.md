@@ -433,7 +433,7 @@ Before writing any code, read these files:
 
   **Verify:** `cargo check -p phonograph_db` passes.
 
-- [ ] **6.4 — Add `try_write_txn` to `Database<B>`.**
+- [x] **6.4 — Add `try_write_txn` to `Database<B>`.**
   `#[cfg(feature = "std")]` method. Polling loop with `try_lock()` and
   `thread::sleep(Duration::from_micros(100))`, checking `Instant::elapsed()`.
 
