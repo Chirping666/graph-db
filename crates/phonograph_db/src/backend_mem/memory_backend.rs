@@ -279,7 +279,7 @@ impl backend::Durability for MemoryBackend {
 /// No-op lock guard for [`MemoryBackend`].
 ///
 /// In-memory backends have no external resource to lock, so locking is
-/// a no-op. This guard satisfies the [`LockableBackend::LockGuard`]
+/// a no-op. This guard satisfies the [`LockableBackend::LockGuard`](crate::backend::LockableBackend::LockGuard)
 /// associated type.
 pub struct MemoryLockGuard;
 
