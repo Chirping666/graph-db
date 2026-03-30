@@ -764,7 +764,7 @@ This is documented as a known limitation.
 
   **Verify:** All cache tests pass.
 
-- [ ] **6.3 — Verify full inference integration tests pass.**
+- [x] **6.3 — Verify full inference integration tests pass.**
   ```bash
   cargo test -p phonograph_std -- inference
   ```
