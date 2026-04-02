@@ -1,6 +1,6 @@
 # checklist.md — Static Dispatch & Consistency Hardening
 
-**Status:** Not started
+**Status:** Complete
 
 This checklist brings the codebase into conformance with architectural principles A7–A9
 defined in the project root `CLAUDE.md`. It addresses all findings from the March 2026
@@ -819,7 +819,7 @@ This is documented as a known limitation.
 
 ### ▸ Phase 7 Gate
 
-- [ ] **Phase 7 gate:**
+- [x] **Phase 7 gate:**
   ```bash
   cargo doc --workspace --no-deps
   ```
@@ -829,7 +829,7 @@ This is documented as a known limitation.
 
 ## Phase 8: Final Verification
 
-- [ ] **8.1 — Full workspace build, test, lint, docs.**
+- [x] **8.1 — Full workspace build, test, lint, docs.**
   ```bash
   cargo build --workspace
   cargo test --workspace
@@ -838,28 +838,28 @@ This is documented as a known limitation.
   ```
   All pass with zero warnings.
 
-- [ ] **8.2 — `no_std` verification.**
+- [x] **8.2 — `no_std` verification.**
   ```bash
   cargo check -p phonograph --no-default-features
   cargo check -p phonograph_db --no-default-features
   ```
 
-- [ ] **8.3 — Regression test count.**
+- [x] **8.3 — Regression test count.**
   Compare against Phase 0 baseline. All previously passing tests still pass.
   New tests appear in the count.
 
-- [ ] **8.4 — Run all 17 verification checks from `CLAUDE.md`.**
+- [x] **8.4 — Run all 17 verification checks from `CLAUDE.md`.**
   Execute every command from the Verification Checklist table. All 17 must pass.
 
   **Verify:** All 17 pass.
 
-- [ ] **8.5 — Examples still run.**
+- [x] **8.5 — Examples still run.**
   ```bash
   cargo run -p phonograph_std --example basic_usage
   cargo run -p phonograph_std --example owl_lite_ontology
   ```
 
-- [ ] **8.6 — Targeted grep assertions.**
+- [x] **8.6 — Targeted grep assertions.**
   ```bash
   # A7: no dyn SnapshotReader in production code
   grep -rn 'dyn SnapshotReader' crates/phonograph_db/src/db/graph_view.rs | grep -v '#\[cfg(test)\]' | grep -v 'mod tests' | grep -v '_assert'
@@ -880,7 +880,7 @@ This is documented as a known limitation.
 
 ### ▸ Phase 8 Gate — COMPLETE
 
-- [ ] **All verification checks pass.**
+- [x] **All verification checks pass.**
   Write a completion report to `completion-report.md` at the project root, documenting:
   - Status
   - What was changed (summary of each phase)
